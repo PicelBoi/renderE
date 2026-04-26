@@ -15,7 +15,7 @@ renderE is intended as a replacement for a VM emulating the IntelliStar 1, a sys
 ### Commands
 
 - Run `load.py local flavor`, replacing flavor with the i1 flavor, to load a presentation.
-- Run `run.py` to run the loaded presentation
+- Run `run.py local` to run the loaded presentation
 - Run `toggleNationalLDL.py` with the next argument as either 1 or 0 to enable or disable the national LDL respectively.
 
 ### encodE

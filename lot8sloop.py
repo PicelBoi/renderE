@@ -2,6 +2,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
 import subprocess
+import sys
 import time
 import threading as th
 
@@ -30,9 +31,9 @@ def run():
         # Here is where the run the actual lot8s commands, FINALLY!!!!!!!!!
         if DEBUG == True:
             print("Running presentation with flavor: {}".format(reallot8stype))
-        subprocess.run(["python3", "load.py", "local", reallot8stype])
+        subprocess.run([sys.executable, "load.py", "local", reallot8stype])
         time.sleep(preroll.get())
-        subprocess.run(["python3", "run.py", "local"])
+        subprocess.run([sys.executable, "run.py", "local"])
         if reallot8stype in ["D", "E", "S"]:
             if stop_event.wait(60):
                 break
@@ -47,7 +48,7 @@ def encodE():
     while encodEing:
         if DEBUG == True:
             print("Running encodE!")
-        subprocess.run(["python3", "encodE.py"])
+        subprocess.run([sys.executable, "encodE.py"])
         if stop_encodE_event.wait(600):
             break
 
