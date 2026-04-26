@@ -27,6 +27,12 @@ db = sql.connect("LFRecord.db")
 
 cver = dsm.rget("configVersion")
 obs = dsm.rget(f"Config.{cver}.interestlist.obsStation")
+
+obstype = [o.startswith("T") for o in obs]
+
+obsadd = [o for o in obs if o.startswith("T")]
+obs = [(o if not o.startswith("T") else o[1:]) for o in obs]
+
 coopid = set(dsm.rget(f"Config.{cver}.interestlist.coopId"))
 counties = dsm.rget(f"Config.{cver}.interestlist.county")
 aqis = dsm.rget(f"Config.{cver}.interestlist.aq")
@@ -36,16 +42,18 @@ daypartcoop = dsm.rget(f"Config.{cver}.Local_DaypartForecast").coopId[0]
 sevendaycoop = dsm.rget(f"Config.{cver}.Local_7DayForecast").coopId
 headlinecounty = dsm.rget(f"Config.{cver}.Local_NWSHeadlines").zone
 getawaycoop = dsm.rget(f"Config.{cver}.Local_GetawayForecast").coopId
+uvcoop = dsm.rget(f"Config.{cver}.Ldl_UVForecast").coopId
 
 metrofcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_MetroForecastMap").fcstValue[0][1]]
 regfcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_RegionalForecastMap").fcstValue[0][1]]
 
-lat = dsm.rget("primaryLat")
-lon = dsm.rget("primaryLon")
-
 coopid.add(textfcstcoop)
 coopid.add(daypartcoop)
 coopid.add(sevendaycoop)
+coopid.add(primarycoop)
+
+coopid.update(obsadd)
+
 coopid.update(getawaycoop)
 
 hourlycoop = set()
@@ -78,7 +86,7 @@ def visround(v):
 
 if not doonly or only == "sensor":
     print(f"starting sensor data!")
-    dat = r.get(f"https://wx.lewolfyt.cc?geo={lat},{lon}&include=current,historical").json()
+    dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[primarycoop])}&include=current,historical").json()
     data = twccommon.Data()
     data.skyCondition = dat["current"]["info"]["narrationCode"]
     data.temp = dat["current"]["conditions"]["temperature"]
@@ -97,10 +105,14 @@ if not doonly or only == "sensor":
     dsm.rset(f"obs.SENSOR", data, expiretime)
 
 if not doonly or only == "obs":
-    for stat in obs:
+    for i, stat in enumerate(obs):
         print(f"starting obs for {stat}!")
         try:
-            dat = r.get(f"https://wx.lewolfyt.cc?icao={stat if stat not in stationmap else stationmap[stat]}&include=current,historical").json()
+            if obstype[i]:
+                url = f"https://wx.lewolfyt.cc?geo={','.join(cidmap[stat])}&include=current,extended,historical"
+            else:
+                url = f"https://wx.lewolfyt.cc?icao={stat if stat not in stationmap else stationmap[stat]}&include=current,extended,historical"
+            dat = r.get(url).json()
             data = twccommon.Data()
             data.skyCondition = dat["current"]["info"]["narrationCode"]
             data.temp = dat["current"]["conditions"]["temperature"]
@@ -263,6 +275,31 @@ if not doonly or only == "fcst":
             print(traceback.print_exc())
             print(f"fcst failure for {ci}")
     dsm.rcommit()
+
+if not doonly or only == "uvf":
+    try:
+        print(f"starting uv forecast data for {uvcoop}!")
+        dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[uvcoop])}&extendeddays=10").json()
+        
+        #ldl uv forecast
+        # create fcst times
+        y,m,d,H,M,S,dow,doy,dst = time.localtime(time.time())
+        todayStart = time.mktime((y,m,d,0,0,0,0,0,-1))
+        tomStart   = time.mktime((y,m,d+1,0,0,0,0,0,-1))
+
+        # get uv fcst
+        # check for fcst time - before 4pm = today, after 4pm = tom
+        if H >= 0 and H < 16:
+            start = todayStart
+        else:
+            start = tomStart
+        # set data
+        dsm.rset('uvDailyFcst.%s.%d' % (uvcoop, start), twccommon.Data(index=dat["extended"]["daypart"][0]["uvIndex"]), expiretime)
+    except:
+        print(traceback.print_exc())
+        print(f"uvf failure for {uvcoop}")
+
+dsm.rcommit()
 
 codes = {
     "CFW": "CFW005",
@@ -518,7 +555,7 @@ codes = {
     "Volcano Warning": "VOW003"
 }
 
-if not doonly or only == "bulletin":
+if (not doonly or only == "bulletin") and only != "clearbulletin" and False:
     print("starting bulletins")
     for c in counties:
         try:
@@ -560,6 +597,12 @@ if not doonly or only == "bulletin":
             print(f"error on {c}!")
 
     dsm.rcommit()
+
+if only == "clearbulletin":
+    headline_groups = [1, 2, 3, 4, 5]
+    for c in counties:
+        for g in headline_groups:
+            dsm.rset("bulletin.%s.%d" % (c, g), [], time.time())
 
 
 exit()
