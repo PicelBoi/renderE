@@ -246,7 +246,7 @@ if not doonly or only == "hourly":
     dsm.rcommit()
 
 if not doonly or only == "fcst":
-    cidlist = list(set([sevendaycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
+    cidlist = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
     for ci in cidlist:
         try:
             print(f"starting forecast data for {ci}!")
@@ -276,7 +276,7 @@ if not doonly or only == "fcst":
             print(f"fcst failure for {ci}")
     dsm.rcommit()
 
-if not doonly or only == "uvf":
+if (not doonly or only == "uvf") or only == "tag":
     try:
         print(f"starting uv forecast data for {uvcoop}!")
         dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[uvcoop])}&extendeddays=10").json()
@@ -303,18 +303,41 @@ dsm.rcommit()
 
 if only == "tag":
     idx = dsm.rget("primaryIndexId")
+    primpollen = dsm.rget("primaryPollenStation")
     print(f"starting tag data!")
     y,m,d,H,M,S,wd,day,dst = time.localtime(time.time())
     IdxDate = int(time.mktime((y, m, d, 0, 0, 0, 0, 0, -1)))
     IdxDate2 = int(time.mktime((y, m, d+1, 0, 0, 0, 0, 0, -1)))
-    mosquito = r.get(f"https://api.weather.com/v2/indices/mosquito/daily/15day?geocode={','.join(cidmap[textfcstcoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["mosquitoIndex24hour"]["eveningMosquitoIndex"]
+    mosquito = r.get(f"https://api.weather.com/v2/indices/mosquito/daily/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["mosquitoIndex24hour"]["eveningMosquitoIndex"]
     dsm.rset(f"evening_mosquito.{idx}.{IdxDate}", twccommon.Data(dayIndex=mosquito[0]), expiretime)
     dsm.rset(f"evening_mosquito.{idx}.{IdxDate2}", twccommon.Data(dayIndex=mosquito[1]), expiretime)
     
-    grillby_s = r.get(f"https://api.weather.com/v2/indices/travel/daypart/15day?geocode={','.join(cidmap[textfcstcoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["travelIndex12hour"]
+    grillby_s = r.get(f"https://api.weather.com/v2/indices/travel/daypart/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["travelIndex12hour"]
     second_day = (1 if grillby_s["dayInd"][0]=="N" else 2)
     dsm.rset(f"sight_seeing.{idx}.{IdxDate}", twccommon.Data(dayIndex=grillby_s["leisureTravelIndex"][0]), expiretime)
     dsm.rset(f"sight_seeing.{idx}.{IdxDate2}", twccommon.Data(dayIndex=grillby_s["leisureTravelIndex"][second_day]), expiretime)
+    
+    bonehurtingjuice = r.get(f"https://api.weather.com/v2/indices/achePain/daypart/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["achesPainsIndex12hour"]
+    second_day = (1 if bonehurtingjuice["dayInd"][0]=="N" else 2)
+    dsm.rset(f"achesAndPain.{idx}.{IdxDate}", twccommon.Data(dayIndex=bonehurtingjuice["achesPainsIndex"][0]), expiretime)
+    dsm.rset(f"achesAndPain.{idx}.{IdxDate2}", twccommon.Data(dayIndex=bonehurtingjuice["achesPainsIndex"][second_day]), expiretime)
+    
+    ow_my_lungs = r.get(f"https://api.weather.com/v2/indices/pollen/daypart/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["pollenForecast12hour"]
+    second_day = (1 if ow_my_lungs["dayInd"][0] == "N" else 2)
+    dsm.rset(f"pollen.{primpollen}", twccommon.Data(
+        treePollen=4,
+        grassPollen=ow_my_lungs["grassPollenIndex"][0],
+        weedPollen=ow_my_lungs["ragweedPollenIndex"][0],
+        moldCount=None,
+        reportTime="as of spoof:00"
+    ), expiretime)
+    dsm.rset(f"pollen.{primpollen}", twccommon.Data(
+        treePollen=4,
+        grassPollen=ow_my_lungs["grassPollenIndex"][second_day],
+        weedPollen=ow_my_lungs["ragweedPollenIndex"][second_day],
+        moldCount=None,
+        reportTime="as of spoof:00"
+    ), expiretime)
     
 dsm.rcommit()
 
