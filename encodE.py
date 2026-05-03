@@ -308,8 +308,14 @@ if only == "tag":
     IdxDate = int(time.mktime((y, m, d, 0, 0, 0, 0, 0, -1)))
     IdxDate2 = int(time.mktime((y, m, d+1, 0, 0, 0, 0, 0, -1)))
     mosquito = r.get(f"https://api.weather.com/v2/indices/mosquito/daily/15day?geocode={','.join(cidmap[textfcstcoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["mosquitoIndex24hour"]["eveningMosquitoIndex"]
-    dsm.rset(f"evening_mosquito.{idx}.{IdxDate}", twccommon.Data(dayIndex=3), expiretime)
-    dsm.rset(f"evening_mosquito.{idx}.{IdxDate2}", twccommon.Data(dayIndex=3), expiretime)
+    dsm.rset(f"evening_mosquito.{idx}.{IdxDate}", twccommon.Data(dayIndex=mosquito[0]), expiretime)
+    dsm.rset(f"evening_mosquito.{idx}.{IdxDate2}", twccommon.Data(dayIndex=mosquito[1]), expiretime)
+    
+    grillby_s = r.get(f"https://api.weather.com/v2/indices/travel/daypart/15day?geocode={','.join(cidmap[textfcstcoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["travelIndex12hour"]
+    second_day = (1 if grillby_s["dayInd"][0]=="N" else 2)
+    dsm.rset(f"sight_seeing.{idx}.{IdxDate}", twccommon.Data(dayIndex=grillby_s["leisureTravelIndex"][0]), expiretime)
+    dsm.rset(f"sight_seeing.{idx}.{IdxDate2}", twccommon.Data(dayIndex=grillby_s["leisureTravelIndex"][second_day]), expiretime)
+    
 dsm.rcommit()
 
 codes = {
