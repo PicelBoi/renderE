@@ -162,7 +162,7 @@ def sockethandle():
                 args = data.split(b" ")
                 buf = BytesIO(b" ".join(args[4:]))
                 val = pickle.Unpickler(buf).load()
-                res = dsm.set(args[1].decode(), val, float(args[2]), int(args[3]), 1)
+                res = dsm.set(args[1].decode(), val, float(args[2]), int(args[3]), session=1)
                 conn.send(res.encode())
                 conn.shutdown(socket.SHUT_WR)
                 print(f"remotely set {args[1].decode()} to {val}")
@@ -170,7 +170,7 @@ def sockethandle():
             elif data.split(b" ")[0].decode() == "rget":
                 args = data.split(b" ")
                 buf = BytesIO()
-                dat = dsm.get(args[1].decode(), 1)
+                dat = dsm.get(args[1].decode(), session=1)
                 pickle.Pickler(buf).dump(dat)
                 conn.send(buf.getvalue())
                 conn.shutdown(socket.SHUT_WR)
@@ -961,6 +961,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
     if type(item) == Layer:
         item.timer += 1
         al = []
+        if len(item.pages) == 0:
+            return
         al.append(item.pages[0][1])
         if len(item.pages) > 0:
             for i in item.pages[1:]:
@@ -1005,10 +1007,12 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             draw_item(el, extra)
     elif isinstance(item, Icon):
         if item.textures is None:
-            item.textures = [rl.load_texture_from_image(f) for f in item._ims]
+            item.textures = [None for f in item._ims]
         else:
             item.idx += 1
             item.idx %= item.framect
+        if item.textures[item.idx] is None:
+            item.textures[item.idx] = rl.load_texture_from_image(item._ims[item.idx])
         draw_quad(item, item.textures[item.idx], off=extra["off"])
     elif type(item) is Box:
         #the og quad
@@ -1023,31 +1027,35 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             rl.unload_texture(item.cachedtex)
             item.cachedtex = None
             item._lastcol = item._color
+            item.cimg = None
         elif (item.lasts != item.s) and item.cachedtex is not None:
             rl.unload_texture(item.cachedtex)
             item.cachedtex = None
             item.lasts = item.s
+            item.cimg = None
             item._textsize = item.fnt.font.size(item.s)
+        if item.cimg is None:
+            # if item.fnt.shadow:
+            #     newsurf = rg.pg.Surface((item._textsize[0]+abs(item.fnt.sx*2), item._textsize[1]+abs(item.fnt.sy*2)), rg.pg.SRCALPHA)
+            #     newsurf.fill((0, 0, 0, 0))
+            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item.fnt.scol]), (item.fnt.sx, item.fnt.sy))
+            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
+            # else:
+            #     #newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
+            #     newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
+            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
+            # newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
+            # buf = BytesIO()
+            # rg.pg.image.save(crop_text(newsurf), buf, ".bmp")
+            # item.cimg = rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
+            item.create_cimg()
         if item.cachedtex is None:
-            if item.fnt.shadow:
-                newsurf = rg.pg.Surface((item._textsize[0]+abs(item.fnt.sx*2), item._textsize[1]+abs(item.fnt.sy*2)), rg.pg.SRCALPHA)
-                newsurf.fill((0, 0, 0, 0))
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item.fnt.scol]), (item.fnt.sx, item.fnt.sy))
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            else:
-                #newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-                newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
-            buf = BytesIO()
-            rg.pg.image.save(crop_text(newsurf), buf, ".bmp")
-            item.cimg = rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
             #rl.image_alpha_premultiply(cimg)
             item.cachedtex = rl.load_texture_from_image(item.cimg)
         item._size = (item.cimg.width, item.cimg.height)
         if type(item) == Marquee:
             item.pos += item.step
-            item.pos %= item._size[0]
+            item.pos %= (item._size[0]+720)
             draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0])) #i'll hardcode this until weatherscan forces me to not
         else:
             draw_quad(item, item.cachedtex, off=extra["off"])
