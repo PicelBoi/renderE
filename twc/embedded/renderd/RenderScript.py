@@ -595,8 +595,16 @@ class QTMovie(GraphicRenderable):
 
 class Icon(GraphicRenderable):
 
-    def __init__(self, name, evict=0):
+    def __init__(self, name:str, evict=0):
         GraphicRenderable.__init__(self)
+        if name.startswith("/rsrc/icons_s/"):
+            name = name.replace("/rsrc/icons_s/", "/media/icons/small/", 1)
+        
+        if name.startswith("/rsrc/icons_m/"):
+            name = name.replace("/rsrc/icons_m/", "/media/icons/medium/", 1)
+        
+        if name.startswith("/rsrc/icons_l/"):
+            name = name.replace("/rsrc/icons_l/", "/media/icons/large/", 1)
         self.name = name
         self.evict = evict
         self.unloaded = False
