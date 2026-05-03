@@ -70,7 +70,7 @@ def set(key, data, expiration, update=0, session=0):
     if update:
         (tmp, marshaledEntries) = _set(key, userData, expiration, marshalStr=1)
         marshaledEntries.append(('%s._dsmarshal' % key, formatStr, expiration))
-    ds.set(marshaledEntries)
+    ds.set(marshaledEntries, session)
     return formatStr
     return
 
@@ -216,18 +216,18 @@ def getConfigVersion():
     return
 
 
-def remove(key):
+def remove(key, session=0):
     fields = []
     try:
         formatKey = '%s._dsmarshal' % key
-        (rc, data) = ds.get([formatKey], cachingEnabled=0)
+        (rc, data) = ds.get([formatKey], cachingEnabled=0, session=session)
         tokens = data[formatKey].split(' ')
         maker = _parse(key, tokens, fields)
         fields.append(formatKey)
     except KeyError:
         fields = [key]
 
-    rc = ds.remove(fields)
+    rc = ds.remove(fields, session)
     return
 
 
@@ -435,5 +435,5 @@ def _makeInst(field, data, moduleName, className, makers):
 def rcommit():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("localhost", 7245))
-    sock.sendall(b"rcommit")
+    nh._socksend(sock, b"rcommit")
     sock.close()

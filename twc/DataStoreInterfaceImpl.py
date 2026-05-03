@@ -13,9 +13,11 @@ import time
 def confchange(text):
     return text.replace("Config.0", "Config.1")
 
+debug = True
 class InterfaceImpl:
 
     def __init__(self):
+        print("INTERFACE IMPL CREATED")
         pass
         
 
@@ -36,20 +38,20 @@ class InterfaceImpl:
         result = {}
         
         for key in keys:
-            if key in rg.datastore:
+            if confchange(key) in rg.sessiondata[session]:
+                if (float(rg.sessiondata[session][confchange(key)][1]) < time.time()) and (float(rg.sessiondata[session][confchange(key)][1]) != 0):
+                    notfound[confchange(key)] = None
+                    del rg.sessiondata[session][confchange(key)]
+                    continue
+                res = rg.sessiondata[session][confchange(key)]
+                result[confchange(key)] = res[0]
+            elif confchange(key) in rg.datastore:
                 if (float(rg.datastore[confchange(key)][1]) < time.time()) and (float(rg.datastore[confchange(key)][1]) != 0):
                     notfound[confchange(key)] = None
                     self.remove(key, session)
                     #self.commit()
                     continue
                 res = rg.datastore[confchange(key)]
-                result[confchange(key)] = res[0]
-            elif key in rg.sessiondata[session]:
-                if (float(rg.sessiondata[session][confchange(key)][1]) < time.time()) and (float(rg.sessiondata[session][confchange(key)][1]) != 0):
-                    notfound[confchange(key)] = None
-                    del rg.sessiondata[session][confchange(key)]
-                    continue
-                res = rg.sessiondata[session][confchange(key)]
                 result[confchange(key)] = res[0]
             else:
                 notfound[confchange(key)] = None
@@ -80,6 +82,8 @@ class InterfaceImpl:
         
         for key in rg.sessiondata[session]:
             rg.datastore[key] = rg.sessiondata[session][key]
+        rg.sessiondata[session] = {}
+        rg.sessiondelete[session] = set()
         
         datas = json.dumps(rg.datastore, indent=4)
         
