@@ -151,7 +151,10 @@ def actuallyRunAQueuedCommand(cmd):
         if ix > -1:
             rg.layers[ix][14] = False
     elif type(cmd) in (LoadPresentation, LoadPresentationCmd):
-        rg.runrscfunction(cmd.fileName.replace("\t", "\\t"))
+        try:
+            rg.runrscfunction(cmd.fileName.replace("\t", "\\t"))
+        except:
+            pass
     print(f"queued command has been processed! new queue length: {len(rg.queuedcommands)}")
 
 def queueCommand(cmd, time=0, frameOffset=0, estimatedCmd=0):

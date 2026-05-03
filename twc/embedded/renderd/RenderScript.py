@@ -470,6 +470,21 @@ class TimeCode(GraphicRenderable):
 
 from io import BytesIO
 import builtins
+
+def crop_text(surf: rg.pg.Surface):
+    final_left = 0
+    found_left = False
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            c = surf.get_at((x, y))
+            if c.a != 0:
+                found_left = True
+                break
+        if found_left:
+            break
+        final_left += 1
+    return surf.subsurface(rg.pg.Rect(final_left, 0, surf.get_width()-final_left, surf.get_height()))
+
 class Text(GraphicRenderable):
 
     def __init__(self, font : TTFont, str):
@@ -483,9 +498,6 @@ class Text(GraphicRenderable):
         self.buf = BytesIO()
         self.ascent = self.fnt.font.get_ascent()
         self.descent = self.fnt.font.get_descent()
-        self.cimg = None
-        #sz = self.fnt.font.size(self.s)
-        #text = rg.pg.Surface((sz[0], sz[1]))
         
         
         self.textbase : rg.pg.Surface = self.fnt.font.render(builtins.str(self.s), True, (255, 255, 255))
@@ -495,6 +507,25 @@ class Text(GraphicRenderable):
         self._lastcol = tuple(list(self._color))
         self._textsize = self.textbase.size
         self._size = self.textbase.size
+        self.cimg = None
+        self.create_cimg()
+    
+    def create_cimg(self):
+        if self.fnt.shadow:
+            newsurf = rg.pg.Surface((self._textsize[0]+abs(self.fnt.sx*2), self._textsize[1]+abs(self.fnt.sy*2)), rg.pg.SRCALPHA)
+            newsurf.fill((0, 0, 0, 0))
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self.fnt.scol]), (self.fnt.sx, self.fnt.sy))
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
+        else:
+            #newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
+            newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
+        newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
+        buf = BytesIO()
+        rg.pg.image.save(crop_text(newsurf), buf, ".bmp")
+        self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
+        #sz = self.fnt.font.size(self.s)
+        #text = rg.pg.Surface((sz[0], sz[1]))
 
     def unload(self):
         if self.cimg:
@@ -520,16 +551,22 @@ class Text(GraphicRenderable):
 
     def setBoundingBoxSize(self, w, h):
         self.bounds = (w, h)
+    
+    def setColor(self, r=0, g=0, b=0, a=1):
+        super().setColor(r, g, b, a)
+        if self.cimg:
+            rg.rl.unload_image(self.cimg)
+            self.cimg = None
+        self.create_cimg()
+        return
         
 
 
 class Marquee(Text):
 
     def __init__(self, font, str, step=2, repeat=1):
-        GraphicRenderable.__init__(self)
-        #_renderd.createMarquee(self, font, str, step, repeat)
-        self.fnt = font
-        self.s = str
+        Text.__init__(self, font, str)
+        
         self.step = step
         self.repeat = repeat
         self.pos = 0
@@ -669,6 +706,7 @@ class VectorImage(GraphicRenderable):
             self._size = (fl[0], fl[1])
             self.polys = fl[2]
             self.im = rg.rl.gen_image_color(fl[0], fl[1], rg.rl.BLANK)
+            rg.rl.rl_enable_smooth_lines()
             for pol in self.polys:
                 for i in range(len(pol)):
                     if i == (len(pol)-1):

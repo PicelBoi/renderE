@@ -71,19 +71,24 @@ def createIcon(self, name, evict=0):
     self._size = (self._ims[0].width, self._ims[0].height)
 
 def createTTFont(self, name, pointSize, shadow, sr=0.08, sg=0.08, sb=0.08, sa=1.0, sx=1, sy=2, t=0, l=None, evict=0):
-    ogname = name+""
-    pname = parsePath(name)
-    possible = glob.glob(pname+".*")
-    if len(possible) > 0:
-        name = possible[0]
-    else:
-        name = nethandler.requestNetAsset(name, "font")
-    if not name:
-        print(f"No suitable font found for {ogname}!")
-        exit(1)
     self.pxSize = round(pointSize * 0.95)
-    
-    self.font = pg.Font(name, self.pxSize)
+    if (name, self.pxSize) in rg.font_cache:
+        cached = rg.font_cache[(name, pointSize)]
+        self.font = cached
+    else:
+        ogname = name+""
+        pname = parsePath(name)
+        possible = glob.glob(pname+".*")
+        if len(possible) > 0:
+            name = possible[0]
+        else:
+            name = nethandler.requestNetAsset(name, "font")
+        if not name:
+            print(f"No suitable font found for {ogname}!")
+            exit(1)
+        
+        self.font = pg.Font(name, self.pxSize)
+        rg.font_cache[(name, self.pxSize)] = self.font
     self.scol = (sr, sg, sb, sa)
     self.ascent = self.font.get_ascent()
     self.descent = self.font.get_descent()
