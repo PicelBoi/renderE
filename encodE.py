@@ -301,6 +301,17 @@ if not doonly or only == "uvf":
 
 dsm.rcommit()
 
+if only == "tag":
+    idx = dsm.rget("primaryIndexId")
+    print(f"starting tag data!")
+    y,m,d,H,M,S,wd,day,dst = time.localtime(time.time())
+    IdxDate = int(time.mktime((y, m, d, 0, 0, 0, 0, 0, -1)))
+    IdxDate2 = int(time.mktime((y, m, d+1, 0, 0, 0, 0, 0, -1)))
+    mosquito = r.get(f"https://api.weather.com/v2/indices/mosquito/daily/15day?geocode={','.join(cidmap[textfcstcoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["mosquitoIndex24hour"]["eveningMosquitoIndex"]
+    dsm.rset(f"evening_mosquito.{idx}.{IdxDate}", twccommon.Data(dayIndex=3), expiretime)
+    dsm.rset(f"evening_mosquito.{idx}.{IdxDate2}", twccommon.Data(dayIndex=3), expiretime)
+dsm.rcommit()
+
 codes = {
     "CFW": "CFW005",
     "CFA": "CFW006",
