@@ -119,6 +119,6 @@ def createAudioClip(self, name, evict=0, duration_limit=0, loop_limit=1):
     self.time_played = 0
     self.loop_limit = loop_limit
     self.level = 1
-    self.mix = 0
+    self.mix = 1
     self.single_play = 0
     self.btype = 1
