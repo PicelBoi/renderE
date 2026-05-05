@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.2 (main, Feb  4 2025, 14:51:09) [Clang 16.0.0 (clang-1600.0.26.6)]
 # Embedded file name: __init__.py
 # Compiled at: 2007-01-12 11:33:26
-import os, os.path, twc, twc.dsmarshal, twc.psp, twccommon, twccommon.PluginManager, types, string, domestic.BulletinInfo, twcWx.dataUtil as wxDataUtil
+import os, os.path, twc, twc.dsmarshal, twc.psp, twccommon, twccommon.PluginManager, types, string, domestic.BulletinInfo, twcWx.dataUtil as wxDataUtil, domestic.SunRiseSet as SunRiseSet
 from domestic import dataUtil
 from domestic.Heuristic import *
 dsm = twc.dsmarshal
