@@ -35,9 +35,9 @@ class PromoMessageMapping(mapping.Map):
         lmap = self._getMap(data)
         result = None
         if lmap is not None:
-            keys = lmap.keys()
+            keys = list(lmap.keys())
             keys.sort()
-            result = map(lmap.get, keys)
+            result = list(map(lmap.get, keys))
         return result
         return
 
