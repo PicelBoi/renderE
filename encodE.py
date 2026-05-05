@@ -269,6 +269,9 @@ if not doonly or only == "fcst":
                 data.eveningSkyCondition = daypartdat2["narrationCode"]
                 data.highTemp = dailydat["calendarTempMax"]
                 data.lowTemp = dailydat["calendarTempMin"]
+                data.dayWindSpeed = daypartdat["windSpeed"]
+                data.dayWindDir = windmap[daypartdat["windCardinal"]]
+                data.golfIndex = 3
                 #dailydat["expires"]
                 dsm.rset(f"dailyFcst.{ci}.{int(ktime)}", data, expiretime)
         except:
@@ -322,21 +325,27 @@ if only == "tag":
     dsm.rset(f"achesAndPain.{idx}.{IdxDate}", twccommon.Data(dayIndex=bonehurtingjuice["achesPainsIndex"][0]), expiretime)
     dsm.rset(f"achesAndPain.{idx}.{IdxDate2}", twccommon.Data(dayIndex=bonehurtingjuice["achesPainsIndex"][second_day]), expiretime)
     
+    peelingoffmyskin = r.get(f"https://api.weather.com/v2/indices/drySkin/daypart/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["drySkinIndex12hour"]
+    second_day = (1 if peelingoffmyskin["dayInd"][0]=="N" else 2)
+    dsm.rset(f"dry_skin.{idx}.{IdxDate}", twccommon.Data(dayIndex=peelingoffmyskin["drySkinIndex"][0]), expiretime)
+    dsm.rset(f"dry_skin.{idx}.{IdxDate2}", twccommon.Data(dayIndex=peelingoffmyskin["drySkinIndex"][second_day]), expiretime)
+    
+    
     ow_my_lungs = r.get(f"https://api.weather.com/v2/indices/pollen/daypart/15day?geocode={','.join(cidmap[primarycoop])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["pollenForecast12hour"]
     second_day = (1 if ow_my_lungs["dayInd"][0] == "N" else 2)
     dsm.rset(f"pollen.{primpollen}", twccommon.Data(
-        treePollen=4,
+        treePollen=ow_my_lungs["treePollenIndex"][0],
         grassPollen=ow_my_lungs["grassPollenIndex"][0],
         weedPollen=ow_my_lungs["ragweedPollenIndex"][0],
         moldCount=None,
-        reportTime="as of spoof:00"
+        reportTime=ow_my_lungs["fcstValid"][0]
     ), expiretime)
     dsm.rset(f"pollen.{primpollen}", twccommon.Data(
-        treePollen=4,
+        treePollen=ow_my_lungs["treePollenIndex"][second_day],
         grassPollen=ow_my_lungs["grassPollenIndex"][second_day],
         weedPollen=ow_my_lungs["ragweedPollenIndex"][second_day],
         moldCount=None,
-        reportTime="as of spoof:00"
+        reportTime=ow_my_lungs["fcstValid"][second_day]
     ), expiretime)
     
 dsm.rcommit()
