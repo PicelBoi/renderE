@@ -4,6 +4,8 @@ import json
 from pathlib import PurePath
 import urllib.parse
 
+personality = "Perris"
+
 servers = [
     "https://archive.lewolfyt.cc/PerrisLive/",
     "https://archive.lewolfyt.cc/FlatRockLive/",
@@ -19,7 +21,9 @@ def newjoin(*args):
 
 try:
     with open(newjoin(os.path.dirname(os.path.abspath(__file__)), "servers.json")) as f:
-        servers = json.loads(f.read())[1:]
+        elems = json.loads(f.read())
+        personality = elems[0]
+        servers = elems[1:]
 except:
     import traceback
     traceback.print_exc()
