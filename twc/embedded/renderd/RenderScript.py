@@ -713,15 +713,20 @@ class VectorImage(GraphicRenderable):
                 fl = json.loads(f.read())
             self._size = (fl[0], fl[1])
             self.polys = fl[2]
-            self.im = rg.rl.gen_image_color(fl[0], fl[1], rg.rl.BLANK)
-            rg.rl.rl_enable_smooth_lines()
+            buf = BytesIO()
+            tempsurf = rg.pg.Surface((fl[0], fl[1]), rg.pg.SRCALPHA)
+            
             for pol in self.polys:
                 for i in range(len(pol)):
                     if i == (len(pol)-1):
                         break
                     first = pol[i]
                     second = pol[i+1]
-                    rg.rl.image_draw_line_ex(self.im, first, second, self.lineThickness, rg.rl.WHITE)
+                    
+                    rg.pg.draw.aaline(tempsurf, (255, 255, 255), first, second, self.lineThickness)
+            rg.pg.image.save(tempsurf, buf, ".bmp")
+            bv = buf.getvalue()
+            self.im = rg.rl.load_image_from_memory(".bmp", bv, len(bv))
     
     def unload(self):
         if self.tx:
@@ -1260,7 +1265,7 @@ class AudioSequencer(AudioRenderable):
         return
 
     def duration(self):
-        return sum([e.duration() for e in self.audio])
+        return sum([e.duration() for e in self.audio])-len(self.audio)
         return
 
     def size(self):

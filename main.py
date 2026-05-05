@@ -874,7 +874,6 @@ def update_audioseq(seq : AudioSequencer, ex={"mix": None}):
             break
         ea += 1
     if seq.playingidx != ea:
-        windbg += "A sound has ended\n"
         if type(seq.audio[seq.playingidx]) not in (NullAudioClip, AudioSequencer):
             seq.audio[seq.playingidx].file.stop()
         seq.playingidx = ea
@@ -1228,7 +1227,7 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
     elif type(item) in (AudioClip, MP3_AudioClip):
         if not item.single_play:
             item.single_play = True
-            item.file.play()
+            item.chan = item.file.play()
         update_audio(item)
     elif isinstance(item, PageCommand):
         item.timer += 1
@@ -1264,6 +1263,8 @@ RenderControl.setLayer("Video", vl)
 trans = False
 
 starid = dsm.defaultedGet("starId", "StarID Unavailable")
+
+MUTE = False
 
 while not rl.window_should_close():
     audio_chans = []
@@ -1304,6 +1305,7 @@ while not rl.window_should_close():
         lastaud = len(audio_chans)
     
     sorted_audio = sorted(zip(audio_chans, audio_mixes, audio_vols, audio_depths, audnames), key = lambda x: x[3])
+    audio_finalvols = []
     if sorted_audio:
         audio_chans, audio_mixes, audio_vols, audio_depths, audnames = zip(*sorted_audio)
         
@@ -1319,6 +1321,7 @@ while not rl.window_should_close():
         
         i = 0
         for chan, vol in zip(audio_chans, audio_finalvols):
+            #chan.set_volume(vol if not MUTE else 0)
             snd = chan.get_sound()
             if snd:
                 snd.set_volume(vol)
@@ -1335,7 +1338,8 @@ while not rl.window_should_close():
         rl.draw_fps(10, 10)
         rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
         rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
-        rl.draw_text("\n".join(lines), 10, 100, 20, rl.WHITE)
+        rl.draw_text(f"Audio Vols:\n{'\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])}", 10, 100, 20, rl.WHITE)
+        #rl.draw_text("\n".join(lines), 10, 100, 20, rl.WHITE)
     for i in range(len(last_sec)):
         last_sec[i] -= 1
     
@@ -1351,3 +1355,6 @@ while not rl.window_should_close():
     
     if rl.is_key_pressed(rl.KeyboardKey.KEY_D):
         DEBUG = not DEBUG
+    
+    if rl.is_key_pressed(rl.KeyboardKey.KEY_M):
+        MUTE = not MUTE
