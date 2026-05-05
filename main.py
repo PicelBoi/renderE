@@ -1324,7 +1324,7 @@ while not rl.window_should_close():
             #chan.set_volume(vol if not MUTE else 0)
             snd = chan.get_sound()
             if snd:
-                snd.set_volume(vol)
+                snd.set_volume(vol if not MUTE else 0)
             i += 1
         #print("set volume", vol)
     
