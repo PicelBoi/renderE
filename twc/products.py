@@ -17,10 +17,15 @@ class Product:
         self.__params = params
         self.__data = twc.Data()
         self.__testData = twc.Data()
+        self.__label = []
         return
 
     def getName(self):
         return self.__params.product
+        return
+    
+    def getProdInstance(self):
+        return self.__params.prodInst
         return
 
     def getShortName(self):
@@ -83,6 +88,19 @@ class Product:
 
     def setPageDurations(self, durations):
         self.__pageDurations = durations
+        return
+    
+    def getLabel(self):
+        return self.__label
+        return
+
+    def setLabel(self, label):
+        self.__label = label
+        return
+
+    def addLabel(self, label, duration, image=None):
+        d = twc.Data(label=label, duration=duration, image=image)
+        self.__label.append(d)
         return
 
     def active(self):

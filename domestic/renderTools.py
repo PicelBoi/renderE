@@ -15,6 +15,8 @@ from twc.embedded.renderd.RenderScript import SetVisibility
 from twc.embedded.renderd.RenderScript import SetPosition
 from twc.embedded.renderd.RenderScript import Text
 from twc.embedded.renderd.RenderScript import TTFont
+from twc.embedded.renderd.RenderScript import TIFF_Image
+import twc
 from functools import reduce
 
 def apply(func, args, kwargs=None):
@@ -59,43 +61,81 @@ def sequenceOnPage(page, grSet, delayList, repeat=0):
     return
 
 
-def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDataBar=0, fadeDuration=5, displayDuration=0):
-    (r, g, b, a) = rgbaConvert(212, 212, 50, 255)
-    font = TTFont('/rsrc/fonts/Interstate-Bold', 30, t=30)
-    gr = Text(font, text)
-    gr.setColor(r, g, b, a)
-    print(gr.size())
-    if xPos is None:
-        xPos = (720 - gr.size()[0]) / 2
-    if yPos is None:
-        yPos = (480 - gr.size()[1]) / 2
-    gr.setPosition(xPos, yPos)
-    renderObj = gr
-    if noDataBar:
-        cr = CompositeRenderable()
-        bb = Box()
-        bb.setSize(720, 31)
-        bb.setPosition(0, yPos - 6)
-        (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
-        bb.setColor(r, g, b, a)
-        cr.addItem(bb)
-        cr.addItem(gr)
-        renderObj = cr
-    if displayDuration > 0:
-        page.addItem(renderObj)
-        totalDelay = 2 * fadeDuration + 20
-        dur = displayDuration - totalDelay
-        ef = EffectSequencer(renderObj)
-        ef.addEffect(SetVisibility(None, 0), 1)
-        ef.addEffect(Fader(None, 1, 0, 1), 1)
-        ef.addEffect(SetVisibility(None, 1), 1)
-        ef.addEffect(NullEffect(None), 7)
-        ef.addEffect(Fader(None, 0, 1, fadeDuration), fadeDuration)
-        ef.addEffect(NullEffect(None), dur)
-        ef.addEffect(Fader(None, 1, 0, fadeDuration), fadeDuration)
-        page.addItem(ef)
-    return renderObj
-    return
+def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDataBar=0, fadeDuration=5, displayDuration=0, rgba=None):
+    if twc.personality == "FlatRock":
+        if rgba:
+            (r, g, b, a) = rgbaConvert(*rgba)
+        else:
+            (r, g, b, a) = rgbaConvert(25, 25, 25, 255)
+        font = TTFont('/rsrc/fonts/Interstate-Bold', 30, t=30, shadow=0)
+        gr = Text(font, text)
+        gr.setColor(r, g, b, a)
+        if xPos is None:
+            xPos = (720 - gr.size()[0]) / 2
+        if yPos is None:
+            yPos = (480 - gr.size()[1]) / 2
+        gr.setPosition(xPos, yPos)
+        renderObj = gr
+        if noDataBar:
+            cr = CompositeRenderable()
+            bb = Box()
+            bb.setSize(720, 31)
+            bb.setPosition(0, yPos - 6)
+            (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
+            bb.setColor(r, g, b, a)
+            cr.addItem(bb)
+            cr.addItem(gr)
+            renderObj = cr
+        if displayDuration > 0:
+            page.addItem(renderObj)
+            totalDelay = 2 * fadeDuration + 20
+            dur = displayDuration - totalDelay
+            ef = EffectSequencer(renderObj)
+            ef.addEffect(SetVisibility(None, 0), 1)
+            ef.addEffect(Fader(None, 1, 0, 1), 1)
+            ef.addEffect(SetVisibility(None, 1), 1)
+            ef.addEffect(NullEffect(None), 7)
+            ef.addEffect(Fader(None, 0, 1, fadeDuration), fadeDuration)
+            ef.addEffect(NullEffect(None), dur)
+            ef.addEffect(Fader(None, 1, 0, fadeDuration), fadeDuration)
+            page.addItem(ef)
+        return renderObj
+    else:
+        (r, g, b, a) = rgbaConvert(212, 212, 50, 255)
+        font = TTFont('/rsrc/fonts/Interstate-Bold', 30, t=30)
+        gr = Text(font, text)
+        gr.setColor(r, g, b, a)
+        print(gr.size())
+        if xPos is None:
+            xPos = (720 - gr.size()[0]) / 2
+        if yPos is None:
+            yPos = (480 - gr.size()[1]) / 2
+        gr.setPosition(xPos, yPos)
+        renderObj = gr
+        if noDataBar:
+            cr = CompositeRenderable()
+            bb = Box()
+            bb.setSize(720, 31)
+            bb.setPosition(0, yPos - 6)
+            (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
+            bb.setColor(r, g, b, a)
+            cr.addItem(bb)
+            cr.addItem(gr)
+            renderObj = cr
+        if displayDuration > 0:
+            page.addItem(renderObj)
+            totalDelay = 2 * fadeDuration + 20
+            dur = displayDuration - totalDelay
+            ef = EffectSequencer(renderObj)
+            ef.addEffect(SetVisibility(None, 0), 1)
+            ef.addEffect(Fader(None, 1, 0, 1), 1)
+            ef.addEffect(SetVisibility(None, 1), 1)
+            ef.addEffect(NullEffect(None), 7)
+            ef.addEffect(Fader(None, 0, 1, fadeDuration), fadeDuration)
+            ef.addEffect(NullEffect(None), dur)
+            ef.addEffect(Fader(None, 1, 0, fadeDuration), fadeDuration)
+            page.addItem(ef)
+        return renderObj
 
 
 def createTitleBar(string1, string2, s1BkgColor, s2BkgColor, s1TxtColor, s2TxtColor, s1ShdColor, s2ShdColor):
@@ -263,6 +303,23 @@ def createTitleBar(string1, string2, s1BkgColor, s2BkgColor, s1TxtColor, s2TxtCo
     return (crTitleBev, crTitleTxt)
     return
 
+def createSDRefreshTitleBar(titleString, txtColor, background=None):
+    (R, G, B, A) = txtColor
+    (r, g, b, a) = rgbaConvert(R, G, B, A)
+    crTitleTxt = CompositeRenderable()
+    if background:
+        bkgdFile = twc.findRsrc('/backgrounds/%s' % background, 'tif', 0)
+        bkgdImage = TIFF_Image(bkgdFile)
+        crTitleTxt.addItem(bkgdImage)
+        bkgdImage.setPosition(0, 0)
+    titleFont = TTFont('/rsrc/fonts/Interstate-Bold', 36, t=20, sr=r, sb=b, sg=g, sa=a, shadow=0)
+    trTextTitle = Text(titleFont, titleString)
+    trTextTitle.setColor(r, g, b, a)
+    tr1X = tr1Y = 0
+    crTitleTxt.addItem(trTextTitle)
+    trTextTitle.setPosition(11, 11)
+    return crTitleTxt
+    return
 
 def drawMapBanner(page):
     """Draw black map banner."""

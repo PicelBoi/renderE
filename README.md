@@ -10,7 +10,7 @@ renderE is intended as a replacement for a VM emulating the IntelliStar 1, a sys
 2. Install Python dependencies
 3. Run setup.py. This will guide you through setup, and allow you to change options
 4. Place your background music in a folder called "bgm"
-5. Run main.py
+5. Run main.py. Add an argument with a URI for video input (still in development).
 
 ### Commands
 
@@ -28,7 +28,7 @@ encodE is a data encoder bundled with RenderE. To use it, follow these instructi
 
 ## Environment Variables
 
-RenderE uses the following environment variables for replacements to various paths used by the i1:
+RenderE uses the following environment variables for replacements to various paths used by the i1. If you don't set these, items will be automatically downloaded:
 
 - RENDEREROOT: The folder renderE is in. This will probably be removed in the future.
 - RENDERERSRC: The rsrc folder to be used. On the i1, this is located at /usr/local/twc/rsrc

@@ -42,8 +42,8 @@ from functools import reduce
 oldmktime = time.mktime
 def newmktime(struc):
     if type(struc) == list:
-        return oldmktime(tuple(struc))
-    return oldmktime(struc)
+        return oldmktime(tuple([int(a) for a in struc]))
+    return oldmktime(tuple([int(e) for e in struc]))
 time.mktime = newmktime
 
 def apply(func, args, kwargs=None):
@@ -98,16 +98,20 @@ def runrs(filename):
 
 def runrsc(filename):
     dat = "global layerProps\n"
-    with open(filename.replace("\\", "/"), "r") as f:
+    with open(os.path.normpath(filename), "r") as f:
         dat += f.read()
-    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "reduce": reduce, "newjoin": rg.newjoin}
+    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "reduce": reduce, "newjoin": rg.newjoin, "time": time}
+    ns.update()
     fixed = unprint(dat).replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin")
     
     try:
         exec(compile(fixed, filename, "exec"), ns, ns)
     except Exception as e:
+        print("CRASH RSC")
         with open("crash_rsc.txt", "w") as f:
             f.write(fixed)
+        with open("crash_rsc_e.txt", "w") as f:
+            f.write(tb.format_exc())
         raise e
 
 rg.runrsfunction = runrs

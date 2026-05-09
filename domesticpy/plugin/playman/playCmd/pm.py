@@ -22,6 +22,9 @@ def init(config):
 
 def load(id, duration, expire, schedules, params, runlogEvents=None):
     try:
+        if twc.personality == "FlatRock":
+            fname = '%s/playlistload' % tempdir
+            open(fname, 'w').close()
         if duration == 0:
             Log.error('request to load presentation %s with 0 duration ignored' % id)
             return
@@ -36,6 +39,9 @@ def load(id, duration, expire, schedules, params, runlogEvents=None):
         if presentations == None:
             Log.error("couldn't generate a presentation")
             return
+        elif twc.personality == "FlatRock":
+            fname = '%s/playlistgenerate' % tempdir
+            open(fname, 'w').close()
         argData.presentations = presentations
         rsFiles = []
         for vpPres in argData.presentations:
@@ -72,9 +78,21 @@ def run(id, startTime, startFrame, params=None):
 
     try:
         _runRenderScriptFiles(rsFiles)
+        if twc.personality == "FlatRock":
+            fname = '%s/playlistrun' % tempdir
+            open(fname, 'w').close()
     except Exception:
         Log.logCurrentException('error running presentation')
 
+    # if twc.personality == "FlatRock":
+    #     if hasattr(pparams, 'sidChannel'):
+    #         irdChannelSidTable = dsm.defaultedConfigGet('irdChannelSidTable.%s' % pparams.sidChannel)
+    #         if irdChannelSidTable == None:
+    #             irdChannelSidTable = dsm.defaultedConfigGet('irdChannelSidTable.default')
+    #             if irdChannelSidTable == None:
+    #                 irdChannelSidTable = ('100', 9001, 'OA')
+    #         (irdChan, sid, sidSum) = irdChannelSidTable
+    #         _runUpdateSID(sid, sidSum)
     _buildTestLog(argData)
     _buildRunLog(argData)
     _refreshMedia()
@@ -262,14 +280,25 @@ class _ProdLoader(twc.products.ProductLoader):
         return
 
 
-def getAttribs(product, params=None):
-    cfgVersion = int(dsm.getConfigVersion())
-    kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.Override' % cfgVersion]
-    fullParams = twc.getAttribList(kl)
-    if params:
-        fullParams = twccommon.mergeStructs([params, fullParams])
-    return fullParams
-    return
+if twc.personality == "Perris":
+    def getAttribs(product, params=None):
+        cfgVersion = int(dsm.getConfigVersion())
+        kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.Override' % cfgVersion]
+        fullParams = twc.getAttribList(kl)
+        if params:
+            fullParams = twccommon.mergeStructs([params, fullParams])
+        return fullParams
+        return
+elif twc.personality == "FlatRock":
+    def getAttribs(product, prodInst, params=None):
+        cfgVersion = int(dsm.getConfigVersion())
+        #kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.%s.%d' % (cfgVersion, product, prodInst), 'Config.%d.Override' % cfgVersion]
+        kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.Override' % cfgVersion]
+        fullParams = twc.getAttribList(kl)
+        if params:
+            fullParams = twccommon.mergeStructs([params, fullParams])
+        return fullParams
+        return
 
 import nethandler
 def _findFile(prodType, fname):
@@ -337,6 +366,22 @@ def _buildBestSchedPresentations(argData, schedLoaders):
             params = argData.params.clone()
             _pl.setDefaultParams(params)
             schedule = schedLoader.getSchedule(argData.duration)
+            if twc.personality == "FlatRock":
+                for (prodType, playlist) in schedule.items():
+                    prodLabels = []
+                    for prod in playlist:
+                        labels = prod.getLabel()
+                        for labelData in labels:
+                            if labelData.label == '*':
+                                continue
+
+                        prodLabels.append(labels)
+
+                    key = '%s.playlistSchedule' % prodType
+                    Log.info('Setting playlist schedule for %s' % key)
+                    dsm.set(key, prodLabels, 0)
+                    ds.commit()
+            
             return _buildSchedPresentations(argData, schedule)
         except Exception:
             Log.logCurrentException('error building schedule %s:' % schedLoader)
@@ -363,14 +408,19 @@ def _buildViewportPresentation(argData, prodType, playlist):
     vpPres.layerProps = dsm.configGet('viewport.%s' % prodType)
     vpPres.layerProps.name = '%s_%s' % (prodType, argData.id)
     vpPres.layerProps.expire = argData.expire
-    vpPres.prodSchedule = list(map((lambda e: (e.getName(), e.getDuration())), playlist))
+    if twc.personality == "Perris":
+        vpPres.prodSchedule = list(map((lambda e: (e.getName(), e.getDuration())), playlist))
+    elif twc.personality == "FlatRock":
+        vpPres.prodSchedule = list(map((lambda e: (e.getName(), e.getDuration(), e.getProdInstance())), playlist))
     startTime = 0
     startFrameOffset = 0
+    prodCount = 0
     for prod in playlist:
         Log.info('building presentation for product %s (duration=%s)...' % (prod.getName(), prod.getDuration()))
-        prod.updateParams(startTime=startTime, startFrameOffset=startFrameOffset, prodType=prodType, layerProps=vpPres.layerProps, prodSchedule=vpPres.prodSchedule)
+        prod.updateParams(startTime=startTime, startFrameOffset=startFrameOffset, prodType=prodType, layerProps=vpPres.layerProps, prodSchedule=vpPres.prodSchedule, prodCount=prodCount)
         pres = _buildProductPresentation(argData, vpPres, prod)
         startFrameOffset += pres.prod.getDuration()
+        prodCount += 1
         vpPres.prodPresentations.append(pres)
 
     params = argData.params.clone()
@@ -402,8 +452,15 @@ def _buildPresFile(prodType, prod, inclpaths, **ns):
     (fname, f) = domestic.tmpFile(tempdir, prod.getName(), 'rsc')
     prod.updateParams(fname=fname)
     rs = prod.genRenderScript(prodType, inclpaths, **ns)
-    f.write(rs)
-    f.close()
+    try:
+        f.write(rs)
+    except Exception as e:
+        print("Error writing pres file! Dumped using forced utf-8")
+        with open("rs_write_dump.txt", "w", encoding="utf-8") as f:
+            f.write(rs)
+        raise e
+    finally:
+        f.close()
     return fname
     return
 

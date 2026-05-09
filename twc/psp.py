@@ -62,7 +62,7 @@ def evalPage(page, namespace={}, includePath=None):
             val = str(val)
             val.replace("/usr/twc/domestic", os.environ["RENDEREDOMESTIC"])
             fname = None
-            if val[0] == '/' or val[1] == ":":
+            if val[0] == '/' or val[1] == ":"  or val.startswith("C:"):
                 if os.path.exists(val):
                     fname = val
                 elif nethandler.requestNetAssetExt(val):

@@ -113,6 +113,7 @@ def createAudioClip(self, name, evict=0, duration_limit=0, loop_limit=1):
         exit(1)
     self.name = name
     self.file = rg.pg.Sound(name)
+    
     self.chan = None
     self.evict = evict
     self.duration_limit = duration_limit

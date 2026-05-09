@@ -1157,7 +1157,7 @@ class AudioClip(AudioRenderable):
         return
 
     def duration(self):
-        return int(self.file.get_length()*30)
+        return (self.file.get_length()*30)
         return
 
     def size(self):

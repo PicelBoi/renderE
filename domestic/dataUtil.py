@@ -453,6 +453,26 @@ def formatLowTempDesc(temperature, default=None):
     return formatValue(temperature, ranges, default)
     return
 
+def formatSevereWxQualifier(severeWxQualCode):
+    severeWxQualifier = {'Q9005': 'Potential for up to 3 inches of snow', 'Q9010': 'Potential for up to 6 inches of snow', 'Q9015': 'Potential for 6-12 inches of snow', 'Q9020': 'Potential for a foot or more of snow', 'Q9025': 'Potential for significant snowfall', 'Q9030': 'Potential for blizzard conditions', 'Q9205': 'Potential for some icing', 'Q9210': 'Potential for significant icing', 'Q9350': 'Strong Santa Ana winds possible', 'Q9405': 'Potential for heavy rainfall', 'Q9410': 'Potential for flooding rains', 'Q9605': 'Potential for severe thunderstorms', 'Q9610': 'Severe thunderstorms expected', 'Q9800': 'Watching the tropics', 'Q9805': 'Tropical storm conditions possible', 'Q9810': 'Tropical storm conditions likely', 'Q9815': 'Hurricane conditions possible', 'Q9820': 'Hurricane conditions likely', 'Q9825': 'Major hurricane conditions possible', 'Q9830': 'Major hurricane conditions likely'}
+    try:
+        return severeWxQualifier[severeWxQualCode]
+    except:
+        return None
+
+    return
+
+def formatSnowAccum(snowAccumCode):
+    snowAccum = {'A9005': 'up to 3 inches of snow', 'A9010': 'up to 6 inches of snow', 'A9015': '6-12 inches of snow', 'A9020': 'a foot or more of snow', 'A9025': 'a significant snowfall', 'A9205': 'some icing', 'A9210': 'significant icing'}
+    try:
+        return snowAccum[snowAccumCode]
+    except:
+        return None
+
+    return
+
+
+
 
 import twccommon.PluginManager
 TWCPERSDIR = os.environ['TWCPERSDIR']

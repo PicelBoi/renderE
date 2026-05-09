@@ -5,6 +5,8 @@
 # Compiled at: 2007-01-12 11:33:26
 import re, time, types, shutil, twc.dsmarshal, twc.DataStoreInterface, twc.InterestList, twc.MiscCorbaInterface, twccommon, twccommon.Log, domestic.BulletinInfo, os, glob
 import domesticpy.plugin.playman.playCmd.pm as pcpm
+from xml.sax import make_parser, handler
+import nethandler as nh
 ds = twc.DataStoreInterface
 dsm = twc.dsmarshal
 BulletinInfo = domestic.BulletinInfo
@@ -12,6 +14,62 @@ CHANNEL_NAME = 'SystemEventChannel'
 MAP_ACTIVE_KEY = 'mapcuts.active'
 MAP_PENDING_KEY = 'mapcuts.pending'
 MAP_FORCE_KEY = 'mapcuts.force'
+
+class IconParserHandler(handler.ContentHandler):
+
+    def __init__(self):
+        self._data = {}
+        return
+
+    def startElement(self, name, attrs):
+        if name == 'record':
+            self._data[(str(attrs.get('wxId')), str(attrs.get('night', '0')))] = (str(attrs.get('wxId')), str(attrs.get('movie')), str(attrs.get('sfx_name')), str(attrs.get('night', '0')))
+        return
+
+
+def getTextFcstMultimedia(audioCode):
+    sCodeRe = re.compile('S([0-9]{4})([0-9])')
+    for audioElement in audioCode.split(':'):
+        sCodeMatch = sCodeRe.match(audioElement)
+        if sCodeMatch:
+            sCode = sCodeMatch.groups()[0]
+            sDayPart = sCodeMatch.groups()[1]
+            if sDayPart in ['2', '4']:
+                sDayPart = '1'
+            else:
+                sDayPart = '0'
+            try:
+                sCode = str(int(sCode))
+            except ValueError:
+                pass
+            else:
+                break
+    else:
+        return (None, None)
+
+    parser = make_parser()
+    iconHandler = IconParserHandler()
+    parser.setContentHandler(iconHandler)
+    fname = '/media/mappings/textForecast/AnimatedIcons.xml'
+    if not os.path.exists(fname):
+        fname = nh.requestNetAssetExt('/media/mappings/textForecast/AnimatedIcons.xml')
+    parser.parse(fname)
+    data = iconHandler._data
+    try:
+        mapping_element = data[(sCode, sDayPart)]
+    except KeyError:
+        if sDayPart == '1':
+            try:
+                mapping_element = data[(sCode, '0')]
+            except KeyError:
+                mapping_element = (None, None, None, None)
+
+        else:
+            mapping_element = (None, None, None, None)
+
+    return (mapping_element[1], mapping_element[2])
+    return
+
 
 def getBulletinInterestList(ugc):
     cl = getUGCInterestList(ugc, 'county')
