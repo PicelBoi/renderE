@@ -4,6 +4,7 @@ import threading as th
 import pyray as rl
 import numpy as np
 import pygame as pg
+from fractions import Fraction
 
 clock = pg.Clock()
 INPUT_LOCAL_NTSC = 0
@@ -111,7 +112,8 @@ class Handler():
         th.Thread(target=self.runner).start()
     
     def set_volume(self, volume):
-        rl.set_audio_stream_volume(self.ts.astream, volume)
+        if self.ts.astream:
+            rl.set_audio_stream_volume(self.ts.astream, volume)
     
     def runner(self):
         
@@ -139,7 +141,7 @@ class Handler():
                             cant = True
                             break
                         cc = ts.audio.pop(0)
-                        #if cpts != 0:
+                        #if cpts == 0:
                         cpts = cc[0]
                         samples.extend(cc[1])
                         first = False
@@ -153,6 +155,9 @@ class Handler():
                 frr = min(ts.frames, key=lambda x : abs(cpts-x[0]))
                 ts.prune = frr[0]
                 self.frame = frr[1]
+            
+            # if cpts != 0:
+            #     cpts += Fraction(1, 30)
             
             clock.tick_busy_loop(30)
 
