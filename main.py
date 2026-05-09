@@ -1245,8 +1245,10 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
     elif isinstance(item, Image):
         if type(item) is not CompositedImage:
             if not item.texture:
-                item.texture = rl.load_texture_from_image(item.im2)
-            draw_quad(item, item.texture, off=extra["off"])
+                if item.im2 is not None:
+                    item.texture = rl.load_texture_from_image(item.im2)
+            if item.texture:
+                draw_quad(item, item.texture, off=extra["off"])
     elif type(item) is Polygon:
         draw_poly(item)
     elif isinstance(item, AudioSequencer):
@@ -1382,7 +1384,8 @@ while not rl.window_should_close():
         rl.draw_fps(10, 10)
         rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
         rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
-        rl.draw_text(f"Audio Vols:\n{'\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])}", 10, 100, 20, rl.WHITE)
+        vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
+        rl.draw_text(f"Audio Vols:\n{vlist}", 10, 100, 20, rl.WHITE)
         #rl.draw_text("\n".join(lines), 10, 100, 20, rl.WHITE)
     for i in range(len(last_sec)):
         last_sec[i] -= 1
