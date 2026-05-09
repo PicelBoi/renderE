@@ -74,7 +74,7 @@ class TSStream:
         for frame in self.av.decode(*dec):
             if isinstance(frame, av.VideoFrame):
                 self.vtb = frame.time_base
-                self.frames.append((frame.pts/frame.time_base, frame.reformat(width=self.size[0], height=480, format="rgba").to_ndarray().tobytes()))
+                self.frames.append((frame.pts*frame.time_base, frame.reformat(width=self.size[0], height=480, format="rgba").to_ndarray().tobytes()))
                 
                 self.frames = [f for f in self.frames if not f[0] < self.prune]
             elif isinstance(frame, av.AudioFrame):
@@ -90,7 +90,7 @@ class TSStream:
                 
                 for rf in resampler.resample(frame):
                     self.audio.append(
-                        (frame.pts/frame.time_base, rf.to_ndarray().tobytes())
+                        (frame.pts*frame.time_base, rf.to_ndarray().tobytes())
                     )
         
         print("decode end")
@@ -114,6 +114,13 @@ class Handler():
         rl.set_audio_stream_volume(self.ts.astream, volume)
     
     def runner(self):
+        
+        def goback(val): #might try using this at some point for the min function
+            if val > 0:
+                return val
+            else:
+                return float("inf")
+        
         ts = self.ts
         samples = bytearray()
         
@@ -132,6 +139,7 @@ class Handler():
                             cant = True
                             break
                         cc = ts.audio.pop(0)
+                        #if cpts != 0:
                         cpts = cc[0]
                         samples.extend(cc[1])
                         first = False
