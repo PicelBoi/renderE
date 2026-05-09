@@ -3,3 +3,5 @@ raylib
 pillow
 lxml
 requests
+av
+numpy
