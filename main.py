@@ -155,7 +155,7 @@ def sockethandle():
         while True:
             print("waiting time!")
             breaking = False
-            expecting = int.from_bytes(conn.recv(4))
+            expecting = int.from_bytes(conn.recv(4), "big")
             data = bytearray()
             while True:
                 cdata = conn.recv(1024) #i'll have to figure out larger data chunks not-today

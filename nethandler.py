@@ -35,7 +35,7 @@ temp = newjoin(
 )
 
 def _socksend(sock, data):
-    dlen = len(data).to_bytes(4)
+    dlen = len(data).to_bytes(4, "big")
     sock.sendall(dlen+data)
 
 def e(a):
