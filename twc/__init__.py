@@ -9,6 +9,8 @@ import nethandler
 Data = twccommon.Data
 DefaultedData = twccommon.DefaultedData
 
+personality = nethandler.personality
+
 def getAttribList(keys, default=None):
     """Get a merged together list of attributes specified
     by the given keys.  If default is specified then that 
