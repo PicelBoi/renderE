@@ -11,6 +11,7 @@ import twc
 import twccommon.embedded
 import socket
 import os
+import sys
 import threading as th
 import time
 import random
@@ -27,7 +28,17 @@ import patches
 import twc.dsmarshal as dsm
 import pickle
 
+import tscard
+
 DEBUG = False
+
+vidtex = None
+
+sdi = False
+if len(sys.argv) > 1:
+    sdi = True
+    tscard.SDI_URL = sys.argv[1]
+    print(f"Set SDI URL to {sys.argv[1]}")
 
 fov = 25
 screensize = (720, 480)
@@ -556,9 +567,12 @@ def calceffects(quad):
             qx += effect.dx*effect.frame
             qy += effect.dy*effect.frame
         elif type(effect) == Fader:
-            dist = (effect.frame/effect.frames)
-            dist = min(dist, 1)
-            fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
+            if effect.frames == 1:
+                fader = effect.endAlpha
+            else:
+                dist = (effect.frame/effect.frames)
+                dist = min(dist, 1)
+                fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
         elif type(effect) == SetPosition:
             #xxw -= (effect.x)/720*(xxx*2)
             #yyw -= (effect.y)/480*(yyy*2)
@@ -641,11 +655,14 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0)):
                 qy += effect.dy*effect.frame
         elif type(effect) == Fader:
             dist = (effect.frame/effect.frames)
-            if dist >= 1:
+            if effect.frames == 1:
                 fader = effect.endAlpha
             else:
-                dist = min(dist, 1)
-                fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
+                if dist >= 1:
+                    fader = effect.endAlpha
+                else:
+                    dist = min(dist, 1)
+                    fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
         elif type(effect) == SetPosition:
             if not se:
                 #xxw = (-quad._size[0]/2-effect.x)/720*(xxx*2)
@@ -757,9 +774,12 @@ def draw_poly(quad : TIFF_Image, tex=white):
             qx += effect.dx*effect.frame
             qy += effect.dy*effect.frame
         elif type(effect) == Fader:
-            dist = (effect.frame/effect.frames)
-            dist = min(dist, 1)
-            fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
+            if effect.frames == 1:
+                fader = effect.endAlpha
+            else:
+                dist = (effect.frame/effect.frames)
+                dist = min(dist, 1)
+                fader = effect.startAlpha*(1-dist) + effect.endAlpha*dist
         elif type(effect) == Sizer:
             pX = effect.frame*effect.percentX
             if pX == 0:
@@ -951,7 +971,6 @@ def unload_tree(item):
         for i in item.elements:
             unload_tree(i)
 
-vtex = None
 def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0}):
     global mode_3d_tracker
     global once
@@ -1017,8 +1036,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         #the og quad
         draw_quad(item, off=extra["off"])
     elif type(item) is Video:
-        if vtex:
-            draw_quad(item, vtex, off=extra["off"])
+        if vidtex:
+            draw_quad(item, vidtex, off=extra["off"])
     elif isinstance(item, DummyQuad):
         draw_quad(item)
     elif isinstance(item, Text):
@@ -1258,7 +1277,7 @@ vl.addPage(p)
 
 RenderControl.createNamedLayer("Video", 25, 0, 0)
 RenderControl.setLayer("Video", vl)
-#RenderControl.activateLayer("Video")
+RenderControl.activateLayer("Video")
 
 trans = False
 
@@ -1266,7 +1285,17 @@ starid = dsm.defaultedGet("starId", "StarID Unavailable")
 
 MUTE = False
 
+if sdi:
+    sdih = tscard.Handler(tscard.SDI_URL)
+
 while not rl.window_should_close():
+    if sdi:
+        if not vidtex and sdih.size != (0, 0):
+            timg = rl.gen_image_color(*sdih.size, rl.BLACK)
+            vidtex = rl.load_texture_from_image(timg)
+        
+        if sdih.frame:
+            rl.update_texture(vidtex, rl.ffi.new("char []", sdih.frame))
     audio_chans = []
     audio_mixes = []
     audio_vols = []
@@ -1294,6 +1323,7 @@ while not rl.window_should_close():
     audio_depths = []
     audnames = []
     
+    
     for l in sortedLayers:
         lastaud = 0
         if l[-1]:
@@ -1306,12 +1336,14 @@ while not rl.window_should_close():
     
     sorted_audio = sorted(zip(audio_chans, audio_mixes, audio_vols, audio_depths, audnames), key = lambda x: x[3])
     audio_finalvols = []
+    video_audio_level = 1
     if sorted_audio:
         audio_chans, audio_mixes, audio_vols, audio_depths, audnames = zip(*sorted_audio)
         
         audio_finalvols = list(audio_vols).copy()
         
         for i, mix in enumerate(audio_mixes):
+            video_audio_level *= (1 - mix)
             for j in range(len(audio_finalvols)):
                 if j <= i:
                     if j == i:
@@ -1326,6 +1358,10 @@ while not rl.window_should_close():
             if snd:
                 snd.set_volume(vol if not MUTE else 0)
             i += 1
+        print(video_audio_level)
+        
+    if sdi:
+        sdih.set_volume(video_audio_level)
         #print("set volume", vol)
     
     rl.end_mode_3d()
