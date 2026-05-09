@@ -4,7 +4,9 @@
 # Embedded file name: Fallback90.py
 # Compiled at: 2007-01-12 11:33:37
 from functools import reduce
-s = {'Local': [('CurrentConditions', [10 * 30]), ('RegionalObservationMap', [8 * 30]), ('RegionalDopplerRadar', [8 * 30]), ('DaypartForecast', [12 * 30]), ('TextForecast', [36 * 30]), ('7DayForecast', [16 * 30])], 'BackgroundMusic': [('Default', [90 * 30])], 'Tag': [('Null', [50 * 30]), ('Default', [40 * 30])]}
+import twc
+if twc.personality in ["Perris", "FlatRock"]:
+    s = {'Local': [('CurrentConditions', [10 * 30]), ('RegionalObservationMap', [8 * 30]), ('RegionalDopplerRadar', [8 * 30]), ('DaypartForecast', [12 * 30]), ('TextForecast', [36 * 30]), ('7DayForecast', [16 * 30])], 'BackgroundMusic': [('Default', [90 * 30])], 'Tag': [('Null', [50 * 30]), ('Default', [40 * 30])]}
 
 def getSchedule(duration):
     return _adjustScheduleLength(s, duration)

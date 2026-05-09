@@ -4,9 +4,10 @@
 # Embedded file name: Fallback120.py
 # Compiled at: 2007-01-12 11:33:37
 from functools import reduce
+import twc
+if twc.personality in ["Perris", "FlatRock"]:
+    s = {'Local': [('CurrentConditions', [10 * 30]), ('LocalObservations', [14 * 30]), ('RegionalDopplerRadar', [12 * 30]), ('Almanac', [10 * 30]), ('DaypartForecast', [12 * 30]), ('RegionalForecastMap', [10 * 30]), ('TextForecast', [36 * 30]), ('7DayForecast', [16 * 30])], 'BackgroundMusic': [('Default', [120 * 30])], 'Tag': [('Null', [50 * 30]), ('Default', [70 * 30])]}
 
-s = {'Local': [('CurrentConditions', [10 * 30]), ('LocalObservations', [14 * 30]), ('RegionalDopplerRadar', [12 * 30]), ('Almanac', [10 * 30]), ('DaypartForecast', [12 * 30]), ('RegionalForecastMap', [10 * 30]), ('TextForecast', [36 * 30]), ('7DayForecast', [16 * 30])], 'BackgroundMusic': [('Default', [120 * 30])], 'Tag': [('Null', [50 * 30]), ('Default', [70 * 30])]}
-#RegionalDopplerRadar
 def getSchedule(duration):
     return _adjustScheduleLength(s, duration)
     return

@@ -4,7 +4,11 @@
 # Embedded file name: FallbackLdl90.py
 # Compiled at: 2007-01-12 11:33:37
 from functools import reduce
-s = {'Ldl': [('LASCrawl', [4 * 30]), ('TornadoWatch', [6 * 30]), ('LocalStarIDMessage', [10 * 30]), ('CurrentSkyTemp', [4 * 30]), ('CurrentWinds', [4 * 30]), ('CurrentGusts', [4 * 30]), ('CurrentHumidity', [4 * 30]), ('CurrentApparentTemp', [4 * 30]), ('CurrentDewpoint', [4 * 30]), ('CurrentPressure', [4 * 30]), ('CurrentCeiling', [4 * 30]), ('CurrentVisibility', [4 * 30]), ('CurrentMTDPrecip', [4 * 30]), ('Date', [4 * 30]), ('TornadoWatch', [6 * 30]), ('LocalStarIDMessage', [10 * 30]), ('CurrentSkyTemp', [4 * 30]), ('CurrentWinds', [4 * 30]), ('Void', [2 * 30])], 'TimeTemp': [('Default', [120 * 30])], 'Logo': [('Default', [120 * 30])]}
+import twc
+if twc.personality == "Perris":
+    s = {'Ldl': [('LASCrawl', [4 * 30]), ('TornadoWatch', [6 * 30]), ('LocalStarIDMessage', [10 * 30]), ('CurrentSkyTemp', [4 * 30]), ('CurrentWinds', [4 * 30]), ('CurrentGusts', [4 * 30]), ('CurrentHumidity', [4 * 30]), ('CurrentApparentTemp', [4 * 30]), ('CurrentDewpoint', [4 * 30]), ('CurrentPressure', [4 * 30]), ('CurrentCeiling', [4 * 30]), ('CurrentVisibility', [4 * 30]), ('CurrentMTDPrecip', [4 * 30]), ('Date', [4 * 30]), ('TornadoWatch', [6 * 30]), ('LocalStarIDMessage', [10 * 30]), ('CurrentSkyTemp', [4 * 30]), ('CurrentWinds', [4 * 30]), ('Void', [2 * 30])], 'TimeTemp': [('Default', [120 * 30])], 'Logo': [('Default', [120 * 30])]}
+elif twc.personality == "FlatRock":
+    s = {'Ldl': [('IntroAnimation', [2 * 30]), ('CurrentObs', [12 * 30]), ('StarIDMessage', [4 * 30]), ('Void', [90 * 30])], 'LdlMenu': [('IntroAnimation', [2 * 30]), ('Default', [88 * 30])], 'TimeTemp': [('Default', [90 * 30])], 'Logo': [('Default', [90 * 30])]}
 
 def getSchedule(duration):
     return _adjustScheduleLength(s, duration)
