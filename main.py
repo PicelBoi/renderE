@@ -990,11 +990,13 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 item.timer = 0
         
         ea = 0
+        broke = False
         for i in range(len(item.pages)):
             ea += 1
             if item.pages[ea-1][1] == 0:
                 break
             if item.timer < al[i]:
+                broke = True
                 break
         
         if len(item.pages) > 0:
@@ -1015,6 +1017,12 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             #...and here
             for cmd in item.pages[item.pa][0]._onStartCommands:
                 RenderControl.actuallyRunAQueuedCommand(cmd)
+        elif (item.pa == (len(item.pages)-1) and not broke) and not item.pages[item.pa][0].ended:
+            item.pages[item.pa][0].ended = True
+            for cmd in item.pages[item.pa][0]._onEndCommands:
+                RenderControl.actuallyRunAQueuedCommand(cmd)
+            if not extra["lloop"]:
+                item.pages[item.pa][0].__del__()
         else:
             for cmd in item.pages[item.pa][0]._onFrameCommands:
                 if item.timer == cmd[1]:
