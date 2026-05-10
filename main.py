@@ -16,6 +16,8 @@ import threading as th
 import time
 import random
 
+import builtins
+builtins.__dict__["renderElog"] = print #for testing purposes only
 
 import domesticpy.plugin.playman.playCmd.local as pmlc
 import domesticpy.plugin.playman.playCmd.pm as pm
@@ -609,7 +611,7 @@ def calceffects(quad):
         yyw -= (activedrawlayer[7]/480*(yyy*2))
     return xxw, yyw, mat, fader, qx, qy
 
-def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0)):
+def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), premult=False):
     effects = quad.effects
     #rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_POINT)
     plane.materials[0].maps.texture = tex
@@ -617,14 +619,9 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0)):
         rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_TRILINEAR)
     qqx, qqy = quad._position
     if isinstance(quad, Text) or isinstance(quad, Clock):
-        test = "qypgj"
-        descending = False
-        for c in test:
-            if c in quad.s:
-                descending = True
-        if descending or True:
-            qqy += quad.descent*0.96
-        qqy -= quad.s.count("\n")*quad.fnt.reallineheight*0.96
+        qqy += quad.descent*0.93
+        #print(quad.ascent-quad.descent, quad.cimg.height)
+        qqy -= quad.s.count("\n")*quad.fnt.reallineheight*0.93
         if quad.fnt.shadow:
             #qqx -= quad.fnt.sx
             qqy -= abs(quad.fnt.sy)
@@ -710,13 +707,14 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0)):
         c2 /= 255
         c3 /= 255
         c4 /= 255
+    pfader = (1 if not premult else fader)
     try:
-        col = rl.Color(min(round(quad._color[0]*255), 255), min(round(quad._color[1]*255), 255), min(round(quad._color[2]*255), 255), min(round(quad._color[3]*fader*255), 255))
+        col = rl.Color(min(round(quad._color[0]*255*pfader), 255), min(round(quad._color[1]*255*pfader), 255), min(round(quad._color[2]*255*pfader), 255), min(round(quad._color[3]*fader*255), 255))
     except Exception as e:
         print(c1, c2, c3, c4)
         raise e
     if isinstance(quad, Text):
-        col = rl.Color(255, 255, 255, int(255*fader))
+        col = rl.Color(int(255*pfader), int(255*pfader), int(255*pfader), int(255*fader))
     if visible:
         rl.draw_model_ex(plane, rl.Vector3(-xxw, -yyw, -zzz), rl.Vector3(0, 0, 0), 0, rl.Vector3(1, 1, 1), col)
 
@@ -1050,43 +1048,34 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         draw_quad(item)
     elif isinstance(item, Text):
         if (item._lastcol != item._color) and item.cachedtex is not None:
+            if item.cimg:
+                rl.unload_image(item.cimg)
             rl.unload_texture(item.cachedtex)
             item.cachedtex = None
             item._lastcol = item._color
             item.cimg = None
         elif (item.lasts != item.s) and item.cachedtex is not None:
+            if item.cimg:
+                rl.unload_image(item.cimg)
             rl.unload_texture(item.cachedtex)
             item.cachedtex = None
             item.lasts = item.s
             item.cimg = None
             item._textsize = item.fnt.font.size(item.s)
-        if item.cimg is None:
-            # if item.fnt.shadow:
-            #     newsurf = rg.pg.Surface((item._textsize[0]+abs(item.fnt.sx*2), item._textsize[1]+abs(item.fnt.sy*2)), rg.pg.SRCALPHA)
-            #     newsurf.fill((0, 0, 0, 0))
-            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item.fnt.scol]), (item.fnt.sx, item.fnt.sy))
-            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            # else:
-            #     #newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-            #     newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-            #     newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            # newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
-            # buf = BytesIO()
-            # rg.pg.image.save(crop_text(newsurf), buf, ".bmp")
-            # item.cimg = rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
-            item.create_cimg()
         if item.cachedtex is None:
-            #rl.image_alpha_premultiply(cimg)
+            item._textsize = item.fnt.font.size(item.s)
+            item.create_cimg()
             item.cachedtex = rl.load_texture_from_image(item.cimg)
         item._size = (item.cimg.width, item.cimg.height)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         if type(item) == Marquee:
             item.pos += item.step
             item.pos %= (item._size[0]+720)
-            draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0])) #i'll hardcode this until weatherscan forces me to not
+            draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0]), premult=True) #i'll hardcode this until weatherscan forces me to not
         else:
-            draw_quad(item, item.cachedtex, off=extra["off"])
+            draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
         #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
-        #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif isinstance(item, Clock):
         def fix_strftime(tm, format):
             return tm.strftime(format.replace("%l", str(int(tm.strftime("%I")))))
@@ -1099,22 +1088,12 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.lasts = item.s
             item._textsize = item.fnt.font.size(item.s)
         if item.cachedtex is None:
-            if item.fnt.shadow:
-                newsurf = rg.pg.Surface((item._textsize[0]+abs(item.fnt.sx), item._textsize[1]+abs(item.fnt.sy)), rg.pg.SRCALPHA)
-                newsurf.fill((0, 0, 0, 0))
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item.fnt.scol]), (item.fnt.sx, item.fnt.sy))
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            else:
-                #newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-                newsurf = rg.pg.Surface(item._textsize, rg.pg.SRCALPHA)
-                newsurf.blit(item.fnt.font.render(item.s, True, [c*255 for c in item._color]), (0, 0))
-            newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
-            buf = BytesIO()
-            rg.pg.image.save(newsurf, buf, ".bmp")
-            item.cimg = rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
+            item.create_cimg()
             item.cachedtex = rl.load_texture_from_image(item.cimg)
         item._size = (item.cimg.width, item.cimg.height)
-        draw_quad(item, item.cachedtex)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+        draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) in (CompositeRenderable, ScrollingCompositeRenderable, RichText, CompositedImage):
         drawlevel += 1
         #print(drawlevel)
@@ -1135,6 +1114,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         rl.rl_set_clip_planes(0.01, 10000)
         
         xx2, yy2, transfo, fader, xx2p, yy2p = calceffects(item)
+        
+        rl.draw_rectangle_lines(round(-xx2p), round(-yy2p), 720, 480, rl.RED)
         
         #print(xx2, yy2)
         #xx2, yy2 = 0, 0
@@ -1248,7 +1229,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 if item.im2 is not None:
                     item.texture = rl.load_texture_from_image(item.im2)
             if item.texture:
-                draw_quad(item, item.texture, off=extra["off"])
+                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+                draw_quad(item, item.texture, off=extra["off"], premult=True)
+                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) is Polygon:
         draw_poly(item)
     elif isinstance(item, AudioSequencer):

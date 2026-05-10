@@ -449,17 +449,39 @@ class Clock(GraphicRenderable):
         self.justification = justification
         self.timezone = timezone
         self.timezoneDisplay = timezoneDisplay
-        self.s = ''
+        self.s = '10:09'
         self.lasts = ''
         self.cachedtex = None
         self.cachedimg = None
-        self._textsize = (1, 1)
         self.cimg = None
         self.fnt = font
         self.ascent = self.fnt.font.get_ascent()
         self.descent = self.fnt.font.get_descent()
-        #_renderd.createClock(self, font, format, lcase_ampm, justification, timezone, timezoneDisplay)
         
+        self.textbase : rg.pg.Surface = self.fnt.font.render(builtins.str(self.s), True, (255, 255, 255))
+        self.textbase = rg.pg.transform.smoothscale_by(self.textbase, (1, 0.93))
+        
+        self._lastcol = tuple(list(self._color))
+        self._textsize = self.textbase.size
+        self._size = self.textbase.size
+        
+        self.basesize = self.textbase.get_size()
+        #_renderd.createClock(self, font, format, lcase_ampm, justification, timezone, timezoneDisplay)
+    
+    def create_cimg(self):
+        if self.fnt.shadow:
+            newsurf = rg.pg.Surface((self._textsize[0]+abs(self.fnt.sx*2), self._textsize[1]+abs(self.fnt.sy*2)), rg.pg.SRCALPHA)
+            newsurf.fill((0, 0, 0, 0))
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self.fnt.scol]), (self.fnt.sx, self.fnt.sy))
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
+        else:
+            newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
+            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
+        newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.93))
+        buf = BytesIO()
+        rg.pg.image.save(newsurf, buf, ".bmp")
+        self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
+        rg.rl.image_alpha_premultiply(self.cimg)
 
 
 class TimeCode(GraphicRenderable):
@@ -501,14 +523,13 @@ class Text(GraphicRenderable):
         
         
         self.textbase : rg.pg.Surface = self.fnt.font.render(builtins.str(self.s), True, (255, 255, 255))
-        self.textbase = rg.pg.transform.smoothscale_by(self.textbase, (1, 0.95))
+        self.textbase = rg.pg.transform.smoothscale_by(self.textbase, (1, 0.93))
         
         self.basesize = self.textbase.get_size()
         self._lastcol = tuple(list(self._color))
         self._textsize = self.textbase.size
         self._size = self.textbase.size
         self.cimg = None
-        self.create_cimg()
     
     def create_cimg(self):
         if self.fnt.shadow:
@@ -517,16 +538,14 @@ class Text(GraphicRenderable):
             newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self.fnt.scol]), (self.fnt.sx, self.fnt.sy))
             newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
         else:
-            #newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
             newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
             newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
-        newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.96))
+        newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.93))
         buf = BytesIO()
-        rg.pg.image.save(crop_text(newsurf), buf, ".bmp")
+        rg.pg.image.save(newsurf, buf, ".bmp")
         self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
-        #sz = self.fnt.font.size(self.s)
-        #text = rg.pg.Surface((sz[0], sz[1]))
-
+        rg.rl.image_alpha_premultiply(self.cimg)
+    
     def unload(self):
         if self.cimg:
             rg.rl.unload_image(self.cimg)

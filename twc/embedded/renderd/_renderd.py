@@ -33,6 +33,7 @@ def createImage(self, name, evict=0, x1=0, y1=0, x2=1, y2=1):
     im.save(arr, format="PNG")
     arr = arr.getvalue()
     self.im2 = rl.load_image_from_memory('.png', arr, len(arr))
+    rl.image_alpha_premultiply(self.im2)
     self.texture = None
     self._size = (self.im2.width, self.im2.height)
 
@@ -71,7 +72,7 @@ def createIcon(self, name, evict=0):
     self._size = (self._ims[0].width, self._ims[0].height)
 
 def createTTFont(self, name, pointSize, shadow, sr=0.08, sg=0.08, sb=0.08, sa=1.0, sx=1, sy=2, t=0, l=None, evict=0):
-    self.pxSize = round(pointSize * 0.95)
+    self.pxSize = round(pointSize)
     if (name, self.pxSize) in rg.font_cache:
         cached = rg.font_cache[(name, pointSize)]
         self.font = cached
