@@ -17,6 +17,8 @@ print("encodE by LeWolfYT")
 print("LFRecord.db is from MARIENCODER!")
 print("Make sure to support it too!")
 
+tomtom_key = "" #tomtom key
+
 expiretime = time.time()+30*60
 
 stationmap = { #maps closed stations onto not-closed stations
@@ -43,6 +45,8 @@ sevendaycoop = dsm.rget(f"Config.{cver}.Local_7DayForecast").coopId
 headlinecounty = dsm.rget(f"Config.{cver}.Local_NWSHeadlines").zone
 getawaycoop = dsm.rget(f"Config.{cver}.Local_GetawayForecast").coopId
 uvcoop = dsm.rget(f"Config.{cver}.Ldl_UVForecast").coopId
+
+trafficrep = dsm.rget(f"Config.{cver}.Local_TrafficReport")
 
 metrofcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_MetroForecastMap").fcstValue[0][1]]
 regfcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_RegionalForecastMap").fcstValue[0][1]]
@@ -653,6 +657,79 @@ if only == "clearbulletin":
         for g in headline_groups:
             dsm.rset("bulletin.%s.%d" % (c, g), [], time.time())
 
+from datetime import datetime
+
+if not doonly or only == "traffic" and tomtom_key:
+    print("starting traffic")
+    incidents = {}
+    imapping = { #some of these are commented out
+        #0: "Unspecified", #unknown
+        1: "ACC", #accident
+        #5: "ICY", #ice
+        #7: "CONST", #lane closed
+        8: "CONST", #road closed
+        9: "CONST", #road works
+        #14: "DVEH" #broken down vehicle
+    }
+    commentmapping = {
+        1: "accident"
+    }
+    metroid = trafficrep.metroId[0]
+    print(metroid)
+    def avgpos(coords):
+        tlon = 0
+        tlat = 0
+        for lon, lat in coords:
+            tlon += lon
+            tlat += lat
+        tlon /= len(coords)
+        tlat /= len(coords)
+        return tlon, tlat
+    for box in trafficrep.latLongBoxes:
+        data2 = r.get(f"https://api.tomtom.com/traffic/services/5/incidentDetails?bbox={box[0][0]},{box[0][1]},{box[1][0]},{box[1][1]}&fields=%7Bincidents%7Btype,geometry%7Btype,coordinates%7D,properties%7BiconCategory,events%7Bdescription%7D,from,to,startTime,endTime,tmc%7Bdirection%7D,magnitudeOfDelay%7D%7D%7D&language=en-US&timeValidityFilter=present&key={tomtom_key}").json()["incidents"]
+        
+        for data in data2:
+            icat = data["properties"]["iconCategory"]
+            mag = data["properties"]["magnitudeOfDelay"]
+            lfrom = data["properties"]["from"]
+            lto = data["properties"]["to"]
+            st = data["properties"]["startTime"]
+            events = data["properties"]["events"]
+            coord = avgpos(data["geometry"]["coordinates"])
+            if (lfrom, lto) not in incidents:
+                incidents[(lfrom, lto)] = (icat, mag, lfrom, lto, st, coord, events)
+    finalincidents = 0
+    ii = 0
+    for i, inc in enumerate(list(incidents.values())):
+        cat, mag, f, t, st, coord, events = inc
+        if mag == 0:
+            continue
+        if cat not in imapping:
+            continue
+        dat = twccommon.Data(
+            crit={1: 3, 2: 2, 3: 1, 4: 1}[mag],
+            iType=imapping[cat],
+            issueTime=datetime.fromisoformat(st).timestamp(),
+            long=coord[0],
+            lat=coord[1],
+            incId=tuple(sorted([t, f])),
+            descLocation=f"at {f}",
+            descDetails=events[0]["description"].lower(),
+            descComments=None if len(events) <= 1 else events[1]["description"].lower(),
+            descEstDuration=None,
+            descDetour=None,
+            descAltRoute=None,
+            loc=f"{f} to {t}",
+            dir=" "
+        )
+        ii += 1
+        name = f"incident.{metroid}.0.{ii}"
+        dsm.rset(name, dat, expiretime)
+        print("processed incident", name)
+        finalincidents += 1
+    dsm.rset(f"incidents.{metroid}", twccommon.Data(count=finalincidents, rev=0), expiretime)
+    dsm.rcommit()
+        
 
 exit()
 print("starting nws headlines")
