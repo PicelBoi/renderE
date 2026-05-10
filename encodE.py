@@ -714,7 +714,7 @@ if not doonly or only == "traffic" and tomtom_key:
             lat=coord[1],
             incId=tuple(sorted([t, f])),
             descLocation=f"at {f}",
-            descDetails=events[0]["description"].lower(),
+            descDetails="- "+events[0]["description"].lower(),
             descComments=None if len(events) <= 1 else events[1]["description"].lower(),
             descEstDuration=None,
             descDetour=None,
