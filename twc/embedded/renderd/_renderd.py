@@ -91,13 +91,13 @@ def createTTFont(self, name, pointSize, shadow, sr=0.08, sg=0.08, sb=0.08, sa=1.
         self.font = pg.Font(name, self.pxSize)
         rg.font_cache[(name, self.pxSize)] = self.font
     self.scol = (sr, sg, sb, sa)
-    self.ascent = self.font.get_ascent()
-    self.descent = self.font.get_descent()
+    self.ascent = self.font.get_ascent()*0.93
+    self.descent = self.font.get_descent()*0.93
     self.cachedtex = None
     
     ag = self.font.render("Ag", True, (255, 255, 255)).get_height()
     ag2 = self.font.render("Ag\nAg", True, (255, 255, 255)).get_height()
-    self.reallineheight = ag2-ag
+    self.reallineheight = (ag2-ag)*0.93
 
 def createAudio(self):
     return
