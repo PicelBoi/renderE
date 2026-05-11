@@ -495,6 +495,8 @@ RenderControl.queueCommand(ActivateLayerCmd("Foreground"), time.time()+1)
 
 whiteimg = rl.gen_image_color(1, 1, rl.WHITE)
 white = rl.load_texture_from_image(whiteimg)
+redimg = rl.gen_image_color(1, 1, rl.RED)
+red = rl.load_texture_from_image(redimg)
 once = True
 
 def mod2(a, b=720):
@@ -619,12 +621,12 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_TRILINEAR)
     qqx, qqy = quad._position
     if isinstance(quad, Text) or isinstance(quad, Clock):
-        qqy += quad.descent*0.93
+        qqy += quad.descent
         #print(quad.ascent-quad.descent, quad.cimg.height)
-        qqy -= quad.s.count("\n")*quad.fnt.reallineheight*0.93
+        qqy -= quad.s.count("\n")*quad.fnt.reallineheight
         if quad.fnt.shadow:
             #qqx -= quad.fnt.sx
-            qqy -= abs(quad.fnt.sy)
+            qqy -= abs(quad.fnt.sy*2)
     qqx = round(qqx)+off[0]
     qqy = round(qqy)+off[1]
     qx, qy = qqx*1, qqy*1
@@ -1073,6 +1075,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.pos %= (item._size[0]+720)
             draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0]), premult=True) #i'll hardcode this until weatherscan forces me to not
         else:
+            # draw_quad(item, white, off=extra["off"], premult=True)
+            # draw_quad(DummyQuad(item._position[0], item._position[1]-2, item._size[0], 2, []), red, off=extra["off"], premult=True)
             draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
         #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
@@ -1115,7 +1119,7 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         
         xx2, yy2, transfo, fader, xx2p, yy2p = calceffects(item)
         
-        rl.draw_rectangle_lines(round(-xx2p), round(-yy2p), 720, 480, rl.RED)
+        #rl.draw_rectangle_lines(round(-xx2p), round(-yy2p), 720, 480, rl.RED)
         
         #print(xx2, yy2)
         #xx2, yy2 = 0, 0
