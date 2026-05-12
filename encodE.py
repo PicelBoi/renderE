@@ -119,6 +119,7 @@ if (not doonly or only == "sensor") and not nosensor:
     data.gusts = dat["current"]["conditions"]["windGusts"]
     data.heatIndex = dat["current"]["conditions"]["heatIndex"]
     data.windChill = dat["current"]["conditions"]["windChill"]
+    data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
     data.pressureTendency = dat["current"]["conditions"]["pressureTendency"]
     #wxdata.setData(f"obs", stat, data, dat["current"]["info"]["expires"])
     #dat["current"]["info"]["expires"]
@@ -145,6 +146,7 @@ if not doonly or only == "obs":
             data.gusts = dat["current"]["conditions"]["windGusts"]
             data.heatIndex = dat["current"]["conditions"]["heatIndex"]
             data.windChill = dat["current"]["conditions"]["windChill"]
+            data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
             data.pressureTendency = dat["current"]["conditions"]["pressureTendency"]
             #wxdata.setData(f"obs", stat, data, dat["current"]["info"]["expires"])
             #dat["current"]["info"]["expires"]
