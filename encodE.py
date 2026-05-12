@@ -6,18 +6,27 @@ import sqlite3 as sql
 import time
 from datetime import datetime
 import sys
+import argparse
 
 doonly = False
 only = ""
-if len(sys.argv) > 1:
-    doonly = True
-    only = sys.argv[1]
+
+parser = argparse.ArgumentParser(description="i1 encoder")
+parser.add_argument("item", nargs="?", default="", help="The item to encode data for. Leave blank to encode all data except tag data.")
+parser.add_argument("-ns", "--nosensor", action="store_true", help="Excludes sensor data for CC.")
+
+args = parser.parse_args()
+
+nosensor = args.nosensor
+
+doonly = bool(args.item)
+only = args.item
 
 print("encodE by LeWolfYT")
 print("LFRecord.db is from MARIENCODER!")
 print("Make sure to support it too!")
 
-tomtom_key = "" #tomtom key
+tomtom_key = "cJG5MpqFVuqA6VfHYFcDxz2NoQOmmBVG" #tomtom key
 
 expiretime = time.time()+30*60
 
@@ -88,7 +97,7 @@ for cid in coopid:
 def visround(v):
     return 999 if v is None else round(v)
 
-if not doonly or only == "sensor":
+if (not doonly or only == "sensor") and not nosensor:
     print(f"starting sensor data!")
     dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[primarycoop])}&include=current,historical").json()
     data = twccommon.Data()
