@@ -103,7 +103,9 @@ splashes = [
     "Now you can be the MSO everyone needs.",
     "There is no such thing as the RenderD window.",
     "Run that funky forecast, white boy!",
-    "Azmo, brick, biatch, and now.. this. Hello!"
+    "Azmo, brick, biatch, and now.. this. Hello!",
+    "Holla Holla get $",
+    "R.I.P. NRi1. You will be missed."
 ]
 
 fortune = random.choice(splashes)
@@ -1364,7 +1366,7 @@ while not rl.window_should_close():
     rl.end_mode_3d()
     mode_3d_tracker -= 1
     if DEBUG:
-        #layer_list = "\n".join(["Layer Order:"] + [f"{l[0]} (depth {l[4]})" for l in sortedLayers])
+        layer_list = "\n".join(["Layer Order:"] + [f"{l[0]} (depth {l[4]})" for l in sortedLayers])
         lines = windbg.split("\n")
         if len(lines) > 12:
             lines = lines[-12:]
@@ -1372,8 +1374,7 @@ while not rl.window_should_close():
         rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
         rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
         vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
-        rl.draw_text(f"Audio Vols:\n{vlist}", 10, 100, 20, rl.WHITE)
-        #rl.draw_text("\n".join(lines), 10, 100, 20, rl.WHITE)
+        rl.draw_text(f"stupid layer crap:\n{layer_list}", 10, 100, 20, rl.WHITE)
     for i in range(len(last_sec)):
         last_sec[i] -= 1
     
