@@ -719,6 +719,8 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         raise e
     if isinstance(quad, Text):
         col = rl.Color(int(255*pfader), int(255*pfader), int(255*pfader), int(255*fader))
+    rl.rl_disable_depth_test()
+    rl.rl_disable_depth_mask()
     if visible:
         rl.draw_model_ex(plane, rl.Vector3(-xxw, -yyw, -zzz), rl.Vector3(0, 0, 0), 0, rl.Vector3(1, 1, 1), col)
 
@@ -1374,7 +1376,7 @@ while not rl.window_should_close():
         rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
         rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
         vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
-        rl.draw_text(f"stupid layer crap:\n{layer_list}", 10, 100, 20, rl.WHITE)
+        rl.draw_text(layer_list, 10, 100, 20, rl.WHITE)
     for i in range(len(last_sec)):
         last_sec[i] -= 1
     
