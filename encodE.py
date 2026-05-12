@@ -41,8 +41,7 @@ obs = dsm.rget(f"Config.{cver}.interestlist.obsStation")
 
 obstype = [o.startswith("T") for o in obs]
 
-obsadd = [o for o in obs if o.startswith("T")]
-obs = [(o if not o.startswith("T") else o[1:]) for o in obs]
+tecci = [o for o in obs if o.startswith("T")]
 
 coopid = set(dsm.rget(f"Config.{cver}.interestlist.coopId"))
 counties = dsm.rget(f"Config.{cver}.interestlist.county")
@@ -65,8 +64,6 @@ coopid.add(daypartcoop)
 coopid.add(sevendaycoop)
 coopid.add(primarycoop)
 
-coopid.update(obsadd)
-
 coopid.update(getawaycoop)
 
 hourlycoop = set()
@@ -83,9 +80,10 @@ cur = db.cursor()
 windmap = {"Calm": 0, "N": 1, "NNE": 2, "NE": 3, "ENE": 4, "E": 5, "ESE": 6, "SE": 7, "SSE": 8, "S": 9, "SSW": 10, "SW": 11, "WSW": 12, "W": 13, "WNW": 14, "NW": 15, "NNW": 16, "Var": 17}
 
 cidmap = {}
+teccimap = {}
 
 for cid in coopid:
-    print(f"Searching for coopId {cid}")
+    #print(f"Searching for coopId {cid}")
     c2 = cur.execute("SELECT * FROM LFRecord WHERE coopId = ?", (cid,))
     res = c2.fetchone()
     if not res:
@@ -93,6 +91,15 @@ for cid in coopid:
     else:
         print(f"Found coopId {cid}!")
         cidmap[cid] = (res[7], res[8])
+
+for tid in tecci:
+    c2 = cur.execute("SELECT * FROM LFRecord WHERE primTecci = ?", (tid,))
+    res = c2.fetchone()
+    if not res:
+        print(f"Failure finding tecci {cid}!")
+    else:
+        print(f"Found tecci {tid}!")
+        teccimap[tid] = (res[7], res[8])
 
 def visround(v):
     return 999 if v is None else round(v)
@@ -122,7 +129,7 @@ if not doonly or only == "obs":
         print(f"starting obs for {stat}!")
         try:
             if obstype[i]:
-                url = f"https://wx.lewolfyt.cc?geo={','.join(cidmap[stat])}&include=current,extended,historical"
+                url = f"https://wx.lewolfyt.cc?geo={','.join(teccimap[stat])}&include=current,extended,historical"
             else:
                 url = f"https://wx.lewolfyt.cc?icao={stat if stat not in stationmap else stationmap[stat]}&include=current,extended,historical"
             dat = r.get(url).json()
