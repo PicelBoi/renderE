@@ -371,12 +371,12 @@ def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     colorRight = [(14, 32, 65, 255), (27, 57, 107, 255)]
     colorBox = [(20, 51, 141, 153), (64, 91, 153, 153)]
     
-    if bevelshift:
-        colorTop = shiftGradient(colorTop, *bevelshift)
-        colorBottom = shiftGradient(colorBottom, *bevelshift)
-        colorLeft = shiftGradient(colorLeft, *bevelshift)
-        colorRight = shiftGradient(colorRight, *bevelshift)
-        colorBox = shiftGradient(colorBox, *bevelshift)
+    if shift:
+        colorTop = shiftGradient(colorTop, *shift)
+        colorBottom = shiftGradient(colorBottom, *shift)
+        colorLeft = shiftGradient(colorLeft, *shift)
+        colorRight = shiftGradient(colorRight, *shift)
+        colorBox = shiftGradient(colorBox, *shift)
     
     (r, g, b, a) = colorTop[0]
     (r, g, b, a) = rgbaConvert(r, g, b, a)
