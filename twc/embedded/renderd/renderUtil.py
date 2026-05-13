@@ -371,7 +371,7 @@ def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     colorRight = [(14, 32, 65, 255), (27, 57, 107, 255)]
     colorBox = [(20, 51, 141, 153), (64, 91, 153, 153)]
     
-    if shift:
+    if bevelshift:
         colorTop = shiftGradient(colorTop, *bevelshift)
         colorBottom = shiftGradient(colorBottom, *bevelshift)
         colorLeft = shiftGradient(colorLeft, *bevelshift)
