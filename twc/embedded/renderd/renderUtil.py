@@ -10,6 +10,12 @@ def rgbaConvert(r, g, b, a=255.0):
     return (r / 255.0, g / 255.0, b / 255.0, a / 255.0)
     return
 
+SHIFT_BEVEL_BOX = False
+bevelshift = None #keep this if you don't want to change the default color
+#bevelshift = (0, 0, 0)
+#format: (hue, saturation, value)
+#ranges: 0-360, 0-100, 0-100
+#these numbers are added to the normal values (hue will wrap around, others are clamped)
 
 LEFT = 0
 RIGHT = 1
@@ -330,7 +336,24 @@ RED = 1
 YELLOW = 2
 GREEN = 3
 
-def getBevelBox(w, h, color=None, debug=False):
+def clamp(n, lower, upper):
+    return max(min(n, upper), lower)
+
+def shiftGradient(grad, hue, sat, val):
+    import colorsys as cs
+    new = []
+    for col in grad:
+        a = col[3]
+        h, s, v = cs.rgb_to_hsv(*[c/255 for c in col[:3]])
+        h += (hue/360)
+        h %= 1
+        s = clamp((s+sat/100), 0, 1)
+        v = clamp((v+val/100), 0, 1)
+        r, g, b = cs.hsv_to_rgb(h, s, v)
+        new.append((r*255, g*255, b*255, a))
+    return new
+
+def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     bevelWidth = 3
     if color is None or len(color) != 5:
         color = [[(113, 143, 178, 255), (59, 98, 148, 255)], [(24, 51, 92, 255), (15, 34, 67, 255)], [(39, 79, 133, 255), (61, 100, 150, 255)], [(14, 32, 65, 255), (27, 57, 107, 255)], [(20, 51, 141, 153), (64, 91, 153, 153)]]
@@ -347,6 +370,13 @@ def getBevelBox(w, h, color=None, debug=False):
     colorLeft = [(39, 79, 133, 255), (61, 100, 150, 255)]
     colorRight = [(14, 32, 65, 255), (27, 57, 107, 255)]
     colorBox = [(20, 51, 141, 153), (64, 91, 153, 153)]
+    
+    if shift:
+        colorTop = shiftGradient(colorTop, *bevelshift)
+        colorBottom = shiftGradient(colorBottom, *bevelshift)
+        colorLeft = shiftGradient(colorLeft, *bevelshift)
+        colorRight = shiftGradient(colorRight, *bevelshift)
+        colorBox = shiftGradient(colorBox, *bevelshift)
     
     (r, g, b, a) = colorTop[0]
     (r, g, b, a) = rgbaConvert(r, g, b, a)
