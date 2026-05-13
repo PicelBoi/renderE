@@ -70,7 +70,7 @@ def loadtif(filename):
     im2 = rl.load_image_from_memory('.png', arr, len(arr))
     return (rl.load_texture_from_image(im2), im2.width, im2.height)
 
-names = ["RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "RenderE", "ReReRenderD", "RemixD"]
+names = ["RenderE" for _ in range(47)] + ["ReReRenderD", "RemixD", "RenderD"]
 windbg = ""
 
 splashes = [
@@ -105,7 +105,9 @@ splashes = [
     "Run that funky forecast, white boy!",
     "Azmo, brick, biatch, and now.. this. Hello!",
     "Holla Holla get $",
-    "R.I.P. NRi1. You will be missed."
+    "R.I.P. NRi1. You will be missed.",
+    "The only simulator to have allegedly won three purple hearts!",
+    "If the graphics are broken, blow into it and try again."
 ]
 
 fortune = random.choice(splashes)
@@ -1255,9 +1257,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             RenderControl.actuallyRunAQueuedCommand(item)
     elif isinstance(item, VectorImage):
         if item.polys:
-            if not item.tx:
-                item.tx = rg.rl.load_texture_from_image(item.im)
             if item.im:
+                if not item.tx:
+                    item.tx = rg.rl.load_texture_from_image(item.im)
                 draw_quad(item, item.tx)
     else:
         pass
