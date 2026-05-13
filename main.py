@@ -630,7 +630,7 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         qqy -= quad.s.count("\n")*quad.fnt.reallineheight
         if quad.fnt.shadow:
             #qqx -= quad.fnt.sx
-            qqy -= abs(quad.fnt.sy*2)
+            qqy -= abs(quad.fnt.sy)+1
     qqx = round(qqx)+off[0]
     qqy = round(qqy)+off[1]
     qx, qy = qqx*1, qqy*1
@@ -826,8 +826,9 @@ def draw_poly(quad : TIFF_Image, tex=white):
     for p in pts2:
         pts.append((rl.vector3_transform(p[0], mat), p[1], p[2], p[3], p[4]))
     #pts = pts2
-    
+    rl.rl_enable_smooth_lines()
     rl.rl_begin(rl.RL_TRIANGLES)
+    
     for i in range(1, len(pts) - 1):
         # Triangle 1: Vertex 0, i, i+1
         # Setting color per vertex
@@ -1081,9 +1082,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.pos %= (item._size[0]+720)
             draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0]), premult=True) #i'll hardcode this until weatherscan forces me to not
         else:
-            # draw_quad(item, white, off=extra["off"], premult=True)
-            # draw_quad(DummyQuad(item._position[0], item._position[1]-2, item._size[0], 2, []), red, off=extra["off"], premult=True)
             draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
+            if DEBUG:
+                draw_quad(DummyQuad(item._position[0], item._position[1]-2, item._size[0], 2, []), red, off=extra["off"], premult=True)
         #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif isinstance(item, Clock):
@@ -1125,7 +1126,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         
         xx2, yy2, transfo, fader, xx2p, yy2p = calceffects(item)
         
-        #rl.draw_rectangle_lines(round(-xx2p), round(-yy2p), 720, 480, rl.RED)
+        if DEBUG:
+            rl.draw_rectangle_lines(round(-xx2p), round(-yy2p), 720, 480, rl.RED)
         
         #print(xx2, yy2)
         #xx2, yy2 = 0, 0
@@ -1378,7 +1380,7 @@ while not rl.window_should_close():
         rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
         rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
         vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
-        rl.draw_text(layer_list, 10, 100, 20, rl.WHITE)
+        rl.draw_text(layer_list, 10, 100, 10, rl.WHITE)
     for i in range(len(last_sec)):
         last_sec[i] -= 1
     
