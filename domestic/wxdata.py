@@ -356,24 +356,55 @@ def loadClock():
     return
 
 
-def loadData(prodType, argData):
-    if prodType == 'tag':
-        id = 'tag-%s' % argData.id
-        duration = argData.duration * 30 + argData.durationFrames
-        scheds = "[DynamicSchedule('Tag')]"
-        params = twccommon.Data(mediaNum=argData.mediaNum)
-        _pmLoad(id, duration, argData.expire, scheds, params)
-    elif prodType == 'localAvail':
-        id = 'localAvail-%s' % argData.id
-        duration = 68
-        durationFrames = 0
-        duration = duration * 30 + durationFrames
-        scheds = "[DynamicSchedule('LocalAvail')]"
-        params = twccommon.Data()
-        _pmLoad(id, duration, argData.expire, scheds, params)
-    else:
-        _runPlayCmd(prodType, 'load', argData)
-    return
+
+if twc.personality == "Perris":
+    def loadData(prodType, argData):
+        if prodType == 'tag':
+            id = 'tag-%s' % argData.id
+            duration = argData.duration * 30 + argData.durationFrames
+            scheds = "[DynamicSchedule('Tag')]"
+            params = twccommon.Data(mediaNum=argData.mediaNum)
+            _pmLoad(id, duration, argData.expire, scheds, params)
+        elif prodType == 'localAvail':
+            id = 'localAvail-%s' % argData.id
+            duration = 68
+            durationFrames = 0
+            duration = duration * 30 + durationFrames
+            scheds = "[DynamicSchedule('LocalAvail')]"
+            params = twccommon.Data()
+            _pmLoad(id, duration, argData.expire, scheds, params)
+        else:
+            _runPlayCmd(prodType, 'load', argData)
+        return
+elif twc.personality == "FlatRock":
+    def loadData(prodType, argData):
+        global _ldlIdList
+        if prodType == 'tag':
+            id = 'tag-%s' % argData.id
+            duration = argData.duration * 30 + argData.durationFrames
+            scheds = "[DynamicSchedule('Tag')]"
+            params = twccommon.Data(mediaNum=argData.mediaNum)
+            _pmLoad(id, duration, argData.expire, scheds, params)
+        elif prodType == 'localAvail':
+            id = 'localAvail-%s' % argData.id
+            duration = 68
+            durationFrames = 0
+            duration = duration * 30 + durationFrames
+            scheds = "[DynamicSchedule('LocalAvail')]"
+            params = twccommon.Data()
+            _pmLoad(id, duration, argData.expire, scheds, params)
+        elif prodType == 'SNUP':
+            if len(argData.media1) > 0:
+                displayMode = argData.media1
+            else:
+                displayMode = None
+            _ldlIdList.append(argData.id)
+            _runPlayCmd('ldl', 'load', argData.id, 1, displayMode)
+        elif prodType == 'SNDN':
+            pass
+        elif prodType == 'local':
+            _runPlayCmd(prodType, 'load', argData)
+        return
 
 
 def runData(prodType, argData):
@@ -441,9 +472,9 @@ def system(cmd):
     return
 
 
-def toggleNationalLDL(activate):
+def toggleNationalLDL(activate, displayMode=None):
     id = 0
-    _runPlayCmd('ldl', 'toggleNationalLDL', id, activate)
+    _runPlayCmd('ldl', 'toggleNationalLDL', id, activate, displayMode)
     return
 
 
