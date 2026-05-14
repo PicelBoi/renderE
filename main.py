@@ -33,6 +33,7 @@ import pickle
 import tscard
 
 DEBUG = False
+SAVECR = False
 
 vidtex = None
 
@@ -42,7 +43,7 @@ if len(sys.argv) > 1:
     tscard.SDI_URL = sys.argv[1]
     print(f"Set SDI URL to {sys.argv[1]}")
 
-fov = 25
+fov = 40
 screensize = (720, 480)
 zzz = 1
 rl = rg.rl
@@ -978,11 +979,14 @@ def unload_tree(item):
         for i in item.elements:
             unload_tree(i)
 
+
+iiix = 0
 def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0}):
     global mode_3d_tracker
     global once
     global drawlevel
     global windbg
+    global iiix
     if type(item) == Layer:
         item.timer += 1
         al = []
@@ -1149,10 +1153,11 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 fov,
                 rl.CameraProjection.CAMERA_PERSPECTIVE
             )
-        if isinstance(item, RichText):
-            rl.begin_mode_3d(camera)
-        else:
-            rl.begin_mode_3d(camera2)
+        # if isinstance(item, RichText):
+        #     rl.begin_mode_3d(camera)
+        # else:
+            
+        rl.begin_mode_3d(camera2)
         mode_3d_tracker += 1
         rl.rl_disable_depth_test()
         rl.rl_disable_depth_mask()
@@ -1169,10 +1174,11 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 draw_item(ch, extra={"tex": item.rtex, "cam": camera2, "off": camoff})
                 rl.begin_texture_mode(item.rtex)
                 rl.rl_set_clip_planes(0.01, 10000)
-                if isinstance(item, RichText):
-                    rl.begin_mode_3d(camera)
-                else:
-                    rl.begin_mode_3d(camera2)
+                # if isinstance(item, RichText):
+                #     rl.begin_mode_3d(camera)
+                # else:
+                    
+                rl.begin_mode_3d(camera2)
                 mode_3d_tracker += 1
                 rl.rl_disable_depth_test()
                 rl.rl_disable_depth_mask()
@@ -1186,6 +1192,10 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         rl.end_mode_3d()
         mode_3d_tracker -= 1
         rl.end_texture_mode()
+        
+        iiix += 1
+        if SAVECR:
+            rl.export_image(rl.load_image_from_texture(item.rtex.texture), f"iiimg{iiix}.png")
         
         rl.begin_texture_mode(item.ftex)
         rl.clear_background(rl.Color(0, 0, 0, 0))
@@ -1203,10 +1213,12 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             rl.rl_disable_depth_mask()
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
             #draw_quad_nocal(DummyQuad(0, 0, 720, 480), item.ftex.texture, transfo, fader)
-            if type(item) == RichText:
-                xxr, yyr = item._position
-                draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
-            elif type(item) == ScrollingCompositeRenderable:
+            
+            # if type(item) == RichText:
+            #     xxr, yyr = item._position
+            #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
+            # el
+            if type(item) == ScrollingCompositeRenderable:
                 draw_quad(DummyQuad(*item._position, *item.bbox, effects=item.effects), item.ftex.texture, se=True)
             else:
                 draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True)
@@ -1220,10 +1232,11 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             rl.rl_disable_depth_mask()
             drawlevel += 1
             #draw_quad_nocal(DummyQuad(0, 0, 720, 480), item.ftex.texture, transfo, fader)
-            if type(item) == RichText:
-                xxr, yyr = item._position
-                draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
-            elif type(item) == ScrollingCompositeRenderable:
+            # if type(item) == RichText:
+            #     xxr, yyr = item._position
+            #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
+            # el
+            if type(item) == ScrollingCompositeRenderable:
                 draw_quad(DummyQuad(*item._position, *item.bbox, effects=item.effects), item.ftex.texture, se=True)
             else:
                 draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True)
@@ -1231,7 +1244,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             rl.end_mode_3d()
             mode_3d_tracker -= 1
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
-        
+        if DEBUG:
+            rl.draw_rectangle_lines(0, 0, 720, 480, rl.BLUE)
         if item.debug:
             tex = rl.load_image_from_texture(item.rtex.texture)
             rl.export_image(tex, "image2.png")
@@ -1294,6 +1308,7 @@ if sdi:
     sdih = tscard.Handler(tscard.SDI_URL)
 
 while not rl.window_should_close():
+    iiix = 0
     if sdi:
         if not vidtex and sdih.size != (0, 0):
             timg = rl.gen_image_color(*sdih.size, rl.BLACK)
@@ -1399,3 +1414,6 @@ while not rl.window_should_close():
     
     if rl.is_key_pressed(rl.KeyboardKey.KEY_M):
         MUTE = not MUTE
+    
+    if rl.is_key_pressed(rl.KeyboardKey.KEY_GRAVE):
+        SAVECR = not SAVECR
