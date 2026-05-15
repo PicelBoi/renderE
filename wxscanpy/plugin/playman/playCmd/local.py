@@ -13,12 +13,12 @@ def init(config):
     global _params
     _config = twccommon.Data()
     _config.__dict__.update(config.__dict__)
-    _config.root = '%s/local' % (_config.productRoot,)
+    _config.root = '/usr/twc/domestic/products/local'
     _config.shareDir = '%s/share' % (_config.root,)
     _config.defaultPlaylistGroup = 'DefaultUS'
     _params = twccommon.Data()
     _params.root = _config.root
-    _params.tempDir = '%s/local' % (_config.tempDir,)
+    _params.tempDir = 'temp/local'
     return
 
 

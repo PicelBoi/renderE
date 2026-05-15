@@ -248,8 +248,7 @@ def _toString(node):
 import functools, nethandler
 implid = 0
 
-def filterfixer9000(fun, it):
-    return list(filter(fun, it))
+from patches import filterfixer9000
 
 def _processImpls(impls):
     global implid

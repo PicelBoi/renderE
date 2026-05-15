@@ -60,13 +60,14 @@ def evalPage(page, namespace={}, includePath=None):
             if val == None:
                 continue
             val = str(val)
-            val.replace("/usr/twc/domestic", os.environ["RENDEREDOMESTIC"])
+            val2 = str(val)
+            val2.replace("/usr/twc/domestic", os.environ["RENDEREDOMESTIC"])
             fname = None
-            if val[0] == '/' or val[1] == ":"  or val.startswith("C:"):
-                if os.path.exists(val):
+            if val2[0] == '/' or val2[1] == ":"  or val2.startswith("C:"):
+                if os.path.exists(val2):
                     fname = val
-                elif nethandler.requestNetAssetExt(val):
-                    fname = nethandler.requestNetAssetExt(val)
+                elif nethandler.requestNetAssetExt(val2):
+                    fname = nethandler.requestNetAssetExt(val2)
             
             for path in includePath:
                 temp = '%s/%s' % (path, val)

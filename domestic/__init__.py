@@ -12,6 +12,7 @@ BulletinInfo = domestic.BulletinInfo
 def tmpFile(dir, base='', ext='tmp'):
     global _ID
     fname = '%s/%s_%d.%s' % (dir, base, _ID, ext)
+    os.makedirs(os.path.dirname(fname), exist_ok=True)
     f = open(fname, 'w')
     _ID += 1
     return (fname, f)

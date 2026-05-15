@@ -9,6 +9,7 @@ winter and summer sun safety fact lists.  Will also return the correct
 tupple to product requesting data.
 """
 import random, os, time
+import nethandler
 _summerFactList = []
 _winterFactList = []
 _summerIndex = 0
@@ -29,8 +30,11 @@ def init(fileName):
     global _winterIndex
     if _fileName is None:
         _fileName = fileName
-        _lastModified = os.stat(_fileName)[8]
-    lastModified = os.stat(_fileName)[8]
+        fn = nethandler.requestNetAssetExt(_fileName)
+        _lastModified = os.stat(fn)[8]
+    else:
+        fn = nethandler.requestNetAssetExt(_fileName)
+    lastModified = os.stat(fn)[8]
     if lastModified > _lastModified:
         _lastModified = lastModified
         _summerFactList = []
@@ -39,7 +43,8 @@ def init(fileName):
         _winterIndex = 0
     ns = {}
     ns['addFact'] = addFact
-    execfile(fileName, ns, ns)
+    ns['addTip'] = addFact
+    execfile(fn, ns, ns)
     return
 
 

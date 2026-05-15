@@ -455,8 +455,8 @@ class Clock(GraphicRenderable):
         self.cachedimg = None
         self.cimg = None
         self.fnt = font
-        self.ascent = self.fnt.font.get_ascent()
-        self.descent = self.fnt.font.get_descent()
+        self.ascent = self.fnt.ascent
+        self.descent = self.fnt.descent
         
         self.textbase : rg.pg.Surface = self.fnt.font.render(builtins.str(self.s), True, (255, 255, 255))
         self.textbase = rg.pg.transform.smoothscale_by(self.textbase, (1, 0.93))

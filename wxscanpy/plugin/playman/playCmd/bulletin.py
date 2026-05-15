@@ -3,7 +3,8 @@
 # Decompiled from: Python 3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]
 # Embedded file name: bulletin.py
 # Compiled at: 2007-05-14 11:20:55
-import wxscan, wxscan.dataUtil, wxscan.BulletinInfo as BulletinInfo, os, time, twc.dsmarshal as dsm, twc.DataStoreInterface as ds, twccommon, twccommon.Log as Log, twc.MiscCorbaInterface, wxscan.RunLog
+import wxscan, wxscan.dataUtil, wxscan.BulletinInfo as BulletinInfo, os, time, twc.dsmarshal as dsm, twc.DataStoreInterface as ds, twccommon, twccommon.Log as Log, twc.MiscCorbaInterface, wxscan.RunLog, rendereglobals as rg
+
 DSKEY_ILIST_COUNTY = 'interestlist.county'
 KEY_SVRMODE = 'SevereMode'
 KEY_SVRMODE_PILS = 'Config.' + dsm.getConfigVersion() + '.severeMode.pilList'
@@ -22,10 +23,10 @@ def init(config):
     _config = twccommon.Data()
     _config.__dict__.update(config.__dict__)
     _params = twc.Data()
-    _params.bulletinDir = '%s/ext/bulletin' % (_config.productRoot,)
+    _params.bulletinDir = '/usr/twc/domestic/products/ext/bulletin'
     _params.layerName = 'Bulletin'
     _params.layerDepth = 90
-    _params.tempDir = '%s/ext/bulletin' % (_config.tempDir,)
+    _params.tempDir = 'temp/ext/bulletin'
     _params.shareDir = ['%s' % (_params.bulletinDir,)]
     wxscan.RunLog.init(_config.runlog)
     setCountyInterestList(_interestlist)
@@ -86,7 +87,7 @@ def cancelList(l):
 
 def load():
     dstName = wxscan.buildPresentationScript(_params.bulletinDir, _config.tempDir, 'Misc', 0, 'SevereWeatherCrawl', 0, _params)
-    twc.MiscCorbaInterface.runRenderScript(dstName)
+    rg.runrsfunction(dstName)
     return
 
 
@@ -218,12 +219,12 @@ def _logRotation(rotation, rotationChanged):
 def _setMode(rotation):
     global _lastSvrMode
     spl = dsm.defaultedGet(KEY_SVRMODE_PILS)
-    svrMode = len(filter((lambda e: e.pil in spl), rotation))
+    svrMode = len(list(filter((lambda e: e.pil in spl), rotation)))
     if svrMode != _lastSvrMode:
         _lastSvrMode = svrMode
         dsm.set(KEY_SVRMODE, svrMode, 0)
         ds.commit()
-        twc.MiscCorbaInterface.signalEvent(CHANNEL_NAME, KEY_SVRMODE, str(svrMode))
+        #twc.MiscCorbaInterface.signalEvent(CHANNEL_NAME, KEY_SVRMODE, str(svrMode))
     return
 
 

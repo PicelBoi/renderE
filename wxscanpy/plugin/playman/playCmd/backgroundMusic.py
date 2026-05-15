@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]
 # Embedded file name: backgroundMusic.py
 # Compiled at: 2007-05-14 11:20:55
-import os, os.path, time, glob, stat, twc, twccommon, twccommon.Log as Log, wxscan.Properties, wxscan, twc.dsmarshal as dsm, twc.DataStoreInterface as ds, twc.MiscCorbaInterface, twcWx.dataUtil as dataUtil
+import os, os.path, time, glob, stat, twc, twccommon, twccommon.Log as Log, wxscan.Properties, wxscan, twc.dsmarshal as dsm, twc.DataStoreInterface as ds, twc.MiscCorbaInterface, twcWx.dataUtil as dataUtil, rendereglobals as rg
 
 def init(config):
     global _config
@@ -12,7 +12,7 @@ def init(config):
     _config = twccommon.Data()
     _config.__dict__.update(config.__dict__)
     _params = twc.Data()
-    _params.musicDir = '%s/ext/music' % (_config.productRoot,)
+    _params.musicDir = '/usr/twc/domestic/products/ext/music'
     _params.tempDir = '%s/musicDir' % (_config.tempDir,)
     _params.layerName = wxscan.Properties.MUSIC_LAYER_NAME
     Log.info('backgroundMusic plugin init ended')
@@ -52,7 +52,7 @@ def load():
     defaultList = 1
     fname = None
     atime = 0
-    musicMediaDir = '%s/audio/background/' % _config.mediaRoot
+    musicMediaDir = 'bgm/'
     try:
         bkgMusicList = dataUtil.getBackgroundMusicList('BackgroundMusic')
     except KeyError:
@@ -92,7 +92,7 @@ def load():
         Log.info('Calling wxscan.buildPresentationScript()')
         dstName = wxscan.buildPresentationScript(_params.musicDir, _config.tempDir, 'Misc', 0, 'BackgroundMusic', 0, _params)
         Log.info('Running BackgroundMusic render script')
-        twc.MiscCorbaInterface.runRenderScript(dstName)
+        rg.runrsfunction(dstName)
     except Exception as e:
         Log.error('Unable to call BackgroundMusic.rs render script')
         raise

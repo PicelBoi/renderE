@@ -126,7 +126,7 @@ def getAttribs(params, default=None):
     attrs = _getAttribList(keys, default)
     return attrs
     return
-
+import nethandler
 
 def buildPresentationScript(srcDir, dstDir, pkgName, pkgInst, prod, prodInst, extraParams=None):
     ns = {}
@@ -139,7 +139,7 @@ def buildPresentationScript(srcDir, dstDir, pkgName, pkgInst, prod, prodInst, ex
     params.product = prod
     params.productInst = prodInst
     srcName = srcDir + '/' + prod + '.rs'
-    f = open(srcName, 'r')
+    f = open(nethandler.requestNetAssetExt(srcName), 'r')
     page = f.read()
     f.close()
     page = twc.psp.evalRenderScript(page, ns, getattr(params, 'shareDir', []))

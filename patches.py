@@ -37,6 +37,9 @@ def unprint(stuff):
         finallines.append(l)
     return "\n".join(finallines)
 
+def untab(stuff):
+    return stuff.replace("\t", "        ")
+
 from functools import reduce
 
 oldmktime = time.mktime
@@ -76,6 +79,9 @@ def newstat(path):
     except:
         tb.print_exc()
         print(path)
+
+def filterfixer9000(fun, it):
+    return list(filter(fun, it))
 
 def newexists(path):
     if path.startswith("/twc/data/map.cuts"):

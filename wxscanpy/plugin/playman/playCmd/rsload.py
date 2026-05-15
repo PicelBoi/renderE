@@ -16,13 +16,13 @@ def init(config):
     _config = twccommon.Data()
     _config.__dict__.update(config.__dict__)
     _pm = twccommon.PluginManager.PluginManager(_config.packagePluginRoot)
-    _config.root = '%s/local' % (_config.productRoot,)
-    _config.shareDir = ['%s/pm/incl' % (_config.productRoot,)]
+    _config.root = '/usr/twc/domestic/products/local'
+    _config.shareDir = ['/usr/twc/domestic/products/pm/incl']
     _config.preRoll = dataUtil.secondsToFrames(4)
     _params = twccommon.Data()
     _params.root = _config.root
     _params.shareDir = _config.shareDir
-    _params.tempDir = '%s/local' % (_config.tempDir,)
+    _params.tempDir = 'temp/local'
     return
 
 
@@ -37,12 +37,13 @@ def lock():
     _load('/usr/twc/wxscan/products/misc', 'SplashScreen', params)
     return
 
-
+import nethandler, patches
 def _load(pDir, pName, params=twccommon.Data()):
     try:
         fname = pDir + '/' + pName + '.rs'
-        f = open(fname)
-        page = f.read()
+        fname2 = nethandler.requestNetAssetExt(fname)
+        f = open(fname2)
+        page = patches.unprint(f.read())
         f.close()
         dname = os.path.dirname(fname)
         includePathList = []
@@ -55,10 +56,15 @@ def _load(pDir, pName, params=twccommon.Data()):
         page = psp.evalRenderScript(page, ns)
         fname = _params.tempDir + '/' + pName + '.rsc'
         f = open(fname, 'w')
-        f.write(page)
+        f.write(patches.untab(page))
         f.close()
         #twc.MiscCorbaInterface.runRenderScript(fname)
-        rg.runrsfunction(fname)
+        try:
+            rg.runrsfunction(fname)
+        except Exception as e:
+            with open("rsload_crash.txt", "w") as f:
+                f.write(page)
+            raise e
     except Exception as e:
         twccommon.Log.logCurrentException()
 
