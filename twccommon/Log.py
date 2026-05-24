@@ -75,16 +75,19 @@ def debug(msg, pfx=None):
     logging.debug(tryPrefix(msg, pfx))
     return
 
-
+exc_id = 0
 def logCurrentException(prefix=''):
+    global exc_id
     try:
         (etype, val, tb) = sys.exc_info()
         msg = traceback.format_exception(etype, val, tb)
         if prefix:
             msg = [prefix] + msg
-        for mstr in msg:
+        for i, mstr in enumerate(msg):
             error(mstr)
-
+        with open(f"logged_exc{exc_id}.txt", "w") as f:
+            f.write("\n".join(msg))
+        exc_id += 1
     finally:
         etype = val = tb = None
     return

@@ -353,6 +353,7 @@ def shiftGradient(grad, hue, sat, val):
         new.append((r*255, g*255, b*255, a))
     return new
 
+modern = False
 def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     bevelWidth = 3
     if color is None or len(color) != 5:
@@ -363,13 +364,30 @@ def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     leftEdge = RenderScript.Polygon()
     rightEdge = RenderScript.Polygon()
     centerBox1 = RenderScript.Polygon()
-    centerBox2 = RenderScript.Polygon()
+    if not modern:
+        centerBox2 = RenderScript.Polygon()
     
     colorTop = [(113, 143, 178, 255), (59, 98, 148, 255)]
     colorBottom = [(24, 51, 92, 255), (15, 34, 67, 255)]
     colorLeft = [(39, 79, 133, 255), (61, 100, 150, 255)]
     colorRight = [(14, 32, 65, 255), (27, 57, 107, 255)]
     colorBox = [(20, 51, 141, 153), (64, 91, 153, 153)]
+    
+    if modern:
+        c1 = (80, 139, 200, 255)
+        c2 = (80, 139, 200, 0)
+        
+        c5 = (82, 121, 161, 255)
+        c6 = (82, 121, 161, 0)
+        
+        c3 = (36, 72, 120, 140)
+        c4 = (25, 50, 100, 140)
+        colorBox = [c3, c4]
+        colorRight = [c1, c2, c5, c6]
+        colorLeft = [c1, c2, c5, c6]
+        colorTop = [c1, c2, c5, c6]
+        colorBottom = [c1, c2, c5, c6]
+        bevelWidth = 6
     
     if shift:
         colorTop = shiftGradient(colorTop, *shift)
@@ -378,70 +396,135 @@ def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
         colorRight = shiftGradient(colorRight, *shift)
         colorBox = shiftGradient(colorBox, *shift)
     
-    (r, g, b, a) = colorTop[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    topEdge.addVertex(bevelWidth, 0, r, g, b, a)
-    topEdge.addVertex(0, bevelWidth, r, g, b, a)
-    (r, g, b, a) = colorTop[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    topEdge.addVertex(w, bevelWidth, r, g, b, a)
-    topEdge.addVertex(w - bevelWidth, 0, r, g, b, a)
-    topEdge.setPosition(0, h - bevelWidth)
+    if not modern:
+        (r, g, b, a) = colorTop[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        topEdge.addVertex(bevelWidth, 0, r, g, b, a)
+        topEdge.addVertex(0, bevelWidth, r, g, b, a)
+        (r, g, b, a) = colorTop[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        topEdge.addVertex(w, bevelWidth, r, g, b, a)
+        topEdge.addVertex(w - bevelWidth, 0, r, g, b, a)
+        topEdge.setPosition(0, h - bevelWidth)
+        
+        (r, g, b, a) = colorBottom[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        bottomEdge.addVertex(0, 0, r, g, b, a)
+        bottomEdge.addVertex(bevelWidth, bevelWidth, r, g, b, a)
+        (r, g, b, a) = colorBottom[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        bottomEdge.addVertex(w - bevelWidth, bevelWidth, r, g, b, a)
+        bottomEdge.addVertex(w, 0, r, g, b, a)
+        
+        (r, g, b, a) = colorLeft[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        leftEdge.addVertex(0, 0, r, g, b, a)
+        leftEdge.addVertex(bevelWidth, bevelWidth, r, g, b, a)
+        (r, g, b, a) = colorLeft[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        leftEdge.addVertex(bevelWidth, h - bevelWidth, r, g, b, a)
+        leftEdge.addVertex(0, h, r, g, b, a)
+        
+        (r, g, b, a) = colorRight[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        rightEdge.addVertex(0, bevelWidth, r, g, b, a)
+        rightEdge.addVertex(bevelWidth, 0, r, g, b, a)
+        (r, g, b, a) = colorRight[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        rightEdge.addVertex(bevelWidth, h, r, g, b, a)
+        rightEdge.addVertex(0, h - bevelWidth, r, g, b, a)
+        rightEdge.setPosition(w - bevelWidth, 0)
+
+        
+        tombstone.addItem(topEdge)
+        tombstone.addItem(bottomEdge)
+        tombstone.addItem(leftEdge)
+        tombstone.addItem(rightEdge)
     
-    (r, g, b, a) = colorBottom[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    bottomEdge.addVertex(0, 0, r, g, b, a)
-    bottomEdge.addVertex(bevelWidth, bevelWidth, r, g, b, a)
-    (r, g, b, a) = colorBottom[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    bottomEdge.addVertex(w - bevelWidth, bevelWidth, r, g, b, a)
-    bottomEdge.addVertex(w, 0, r, g, b, a)
+        (r, g, b, a) = colorBox[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox1.addVertex(0, 0, r, g, b, a)
+        centerBox1.addVertex(w - bevelWidth * 2, 0, r, g, b, a)
+        (r, g, b, a) = colorBox[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox1.addVertex(w - bevelWidth * 2, h / 2 - bevelWidth, r, g, b, a)
+        centerBox1.addVertex(0, h / 2 - bevelWidth, r, g, b, a)
+        centerBox1.setPosition(bevelWidth, bevelWidth)
+        
+        
+        (r, g, b, a) = colorBox[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox2.addVertex(0, 0, r, g, b, a)
+        centerBox2.addVertex(w - bevelWidth * 2, 0, r, g, b, a)
+        (r, g, b, a) = colorBox[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox2.addVertex(w - bevelWidth * 2, h / 2 - bevelWidth, r, g, b, a)
+        centerBox2.addVertex(0, h / 2 - bevelWidth, r, g, b, a)
+        centerBox2.setPosition(bevelWidth, h / 2)
     
-    (r, g, b, a) = colorLeft[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    leftEdge.addVertex(0, 0, r, g, b, a)
-    leftEdge.addVertex(bevelWidth, bevelWidth, r, g, b, a)
-    (r, g, b, a) = colorLeft[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    leftEdge.addVertex(bevelWidth, h - bevelWidth, r, g, b, a)
-    leftEdge.addVertex(0, h, r, g, b, a)
+        tombstone.addItem(centerBox1)
+        tombstone.addItem(centerBox2)
+    else:
+        (r1, g1, b1, a1) = colorLeft[0] #
+        (r2, g2, b2, a2) = colorLeft[1]
+        (r3, g3, b3, a3) = colorLeft[2] #
+        (r4, g4, b4, a4) = colorLeft[3]
+        
+        
+        (r1, g1, b1, a1) = rgbaConvert(r1, g1, b1, a1)
+        (r2, g2, b2, a2) = rgbaConvert(r2, g2, b2, a2)
+        (r3, g3, b3, a3) = rgbaConvert(r3, g3, b3, a3)
+        (r4, g4, b4, a4) = rgbaConvert(r4, g4, b4, a4)
+        
+        (r, g, b, a) = colorBox[1]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox1.addVertex(0, 0, r, g, b, a)
+        centerBox1.addVertex(w, 0, r, g, b, a)
+        (r, g, b, a) = colorBox[0]
+        (r, g, b, a) = rgbaConvert(r, g, b, a)
+        centerBox1.addVertex(w, h, r, g, b, a)
+        centerBox1.addVertex(0, h, r, g, b, a)
+        centerBox1.setPosition(0, 0)
+        tombstone.addItem(centerBox1)
+        
+        inset = 1
+        topEdge.setPosition(0, h - bevelWidth)
+        topEdge.addVertex(inset, bevelWidth - inset, r1, g1, b1, a1)
+        topEdge.addVertex(0, bevelWidth, r1, g1, b1, a1)
+        topEdge.addVertex(w, bevelWidth, r1, g1, b1, a1)
+        topEdge.addVertex(w - inset, bevelWidth - inset, r1, g1, b1, a1)
+        topEdge.addVertex(w - bevelWidth, 0, r2, g2, b2, a2)
+        topEdge.addVertex(bevelWidth, 0, r2, g2, b2, a2)
+        
+        bottomEdge.addVertex(w - inset, inset, r3, g3, b3, a3)
+        bottomEdge.addVertex(w, 0, r3, g3, b3, a3)
+        bottomEdge.addVertex(0, 0, r3, g3, b3, a3)
+        bottomEdge.addVertex(inset, inset, r3, g3, b3, a3)
+        bottomEdge.addVertex(bevelWidth, bevelWidth, r4, g4, b4, a4)
+        bottomEdge.addVertex(w - bevelWidth, bevelWidth, r4, g4, b4, a4)
+
+        
+        leftEdge.addVertex(inset, h - inset, r1, g1, b1, a1)
+        leftEdge.addVertex(0, h, r1, g1, b1, a1)
+        leftEdge.addVertex(0, 0, r3, g3, b3, a3)
+        leftEdge.addVertex(inset, inset, r3, g3, b3, a3)
+        leftEdge.addVertex(bevelWidth, bevelWidth, r4, g4, b4, a4)
+        leftEdge.addVertex(bevelWidth, h - bevelWidth, r2, g2, b2, a2)
+        
+        rightEdge.addVertex(bevelWidth - inset, inset, r3, g3, b3, a3)
+        rightEdge.addVertex(bevelWidth, 0, r3, g3, b3, a3)
+        rightEdge.addVertex(bevelWidth, h, r1, g1, b1, a1)
+        rightEdge.addVertex(bevelWidth - inset, h - inset, r1, g1, b1, a1)
+        rightEdge.addVertex(0, h - bevelWidth, r2, g2, b2, a2)
+        rightEdge.addVertex(0, bevelWidth, r4, g4, b4, a4)
+        rightEdge.setPosition(w - bevelWidth, 0)
+
+        
+        tombstone.addItem(topEdge)
+        tombstone.addItem(bottomEdge)
+        tombstone.addItem(leftEdge)
+        tombstone.addItem(rightEdge)
     
-    (r, g, b, a) = colorRight[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    rightEdge.addVertex(0, bevelWidth, r, g, b, a)
-    rightEdge.addVertex(bevelWidth, 0, r, g, b, a)
-    (r, g, b, a) = colorRight[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    rightEdge.addVertex(bevelWidth, h, r, g, b, a)
-    rightEdge.addVertex(0, h - bevelWidth, r, g, b, a)
-    rightEdge.setPosition(w - bevelWidth, 0)
-    
-    (r, g, b, a) = colorBox[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    centerBox1.addVertex(0, 0, r, g, b, a)
-    centerBox1.addVertex(w - bevelWidth * 2, 0, r, g, b, a)
-    (r, g, b, a) = colorBox[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    centerBox1.addVertex(w - bevelWidth * 2, h / 2 - bevelWidth, r, g, b, a)
-    centerBox1.addVertex(0, h / 2 - bevelWidth, r, g, b, a)
-    centerBox1.setPosition(bevelWidth, bevelWidth)
-    
-    (r, g, b, a) = colorBox[1]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    centerBox2.addVertex(0, 0, r, g, b, a)
-    centerBox2.addVertex(w - bevelWidth * 2, 0, r, g, b, a)
-    (r, g, b, a) = colorBox[0]
-    (r, g, b, a) = rgbaConvert(r, g, b, a)
-    centerBox2.addVertex(w - bevelWidth * 2, h / 2 - bevelWidth, r, g, b, a)
-    centerBox2.addVertex(0, h / 2 - bevelWidth, r, g, b, a)
-    centerBox2.setPosition(bevelWidth, h / 2)
-    
-    tombstone.addItem(topEdge)
-    tombstone.addItem(bottomEdge)
-    tombstone.addItem(leftEdge)
-    tombstone.addItem(rightEdge)
-    tombstone.addItem(centerBox1)
-    tombstone.addItem(centerBox2)
     return tombstone
     return
 
@@ -454,8 +537,19 @@ def fadeInOut(p, gr, totalDuration, fadeInDuration=5, fadeOutDuration=5):
         fade.addEffect(RenderScript.NullEffect(None), totalDuration - fadeInDuration - fadeOutDuration)
     if fadeOutDuration:
         fade.addEffect(RenderScript.Fader(None, 1, 0, fadeOutDuration), fadeOutDuration)
-    print(fade.effects)
+    #print(fade.effects)
     p.addItem(fade)
     return
 
+def slideInOut(p, gr, totalDuration, fadeInDuration=5, fadeOutDuration=5, moveDistance=720):
+    fade = RenderScript.EffectSequencer(gr)
+    if fadeInDuration:
+        fade.addEffect(RenderScript.Slider(None, moveDistance/fadeInDuration, 0), fadeInDuration)
+    if totalDuration > fadeInDuration + fadeOutDuration:
+        fade.addEffect(RenderScript.NullEffect(None), totalDuration - fadeInDuration - fadeOutDuration)
+    if fadeOutDuration:
+        fade.addEffect(RenderScript.Slider(None, -moveDistance/fadeOutDuration, 0), fadeOutDuration)
+    #print(fade.effects)
+    p.addItem(fade)
+    return
 

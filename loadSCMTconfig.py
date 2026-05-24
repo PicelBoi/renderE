@@ -23,7 +23,7 @@ def execfile(filename, globa=None, loca=None):
         exec(compile(f.read(), filename, 'exec'), globa, loca)
 
 def do_absolutely_nothing(*args, **kwargs):
-    return
+    print(args, kwargs)
 
 def main():
     try:
@@ -45,11 +45,7 @@ def main():
     print('Loading configuration: %s' % sys.argv[1])
     twccommon.Log.setIdent('loadSCMTconfig')
     twccommon.Log.info('Loading new configuration %s' % sys.argv[1])  
-    try:
-        execfile(sys.argv[1], {"abortMsg": do_absolutely_nothing, "Log": Log, "ds": ds, "dsm": dsm, "wxdata": wxdata, "twc": twc, "twccommon": twccommon})
-    except SyntaxError:
-        twccommon.Log.info('scmt configuration failed with a SyntaxError')
-        raise
+    execfile(sys.argv[1], {"abortMsg": do_absolutely_nothing, "Log": Log, "ds": ds, "dsm": dsm, "wxdata": wxdata, "twc": twc, "twccommon": twccommon})
 
     ds.commit()
     print('Configuration Complete.')

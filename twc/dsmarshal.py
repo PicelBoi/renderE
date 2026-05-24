@@ -89,7 +89,7 @@ def rset(key, data, expiration, update=0):
         res.extend(dat)
     sock.close()
     return res.decode()
-
+import traceback
 def defaultedGet(key, default=None, cachingEnabled=None):
     """Get the object referenced by key, else, return default obj if u cant 
 find it"""

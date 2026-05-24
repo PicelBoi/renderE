@@ -53,7 +53,7 @@ for file in [datpath, statpath]:
         expire = data[filepos:expireix]
         filepos = expireix + 1
         
-        dsdict[name] = [val, expire]
+        dsdict[name] = [val, int(expire)]
 
 with open("ds.json", "w") as f:
     f.write(json.dumps(dsdict, indent=4))

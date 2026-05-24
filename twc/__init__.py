@@ -127,9 +127,11 @@ def presToRenderScript(pres, layerName, **ns):
 
 
 def findRsrc(rsrc, ext, req=1, language=None):
-    rsrcRoot = [os.environ["RENDEREMEDIA"], os.environ["RENDERERSRC"]]
+    rsrcRoot = [os.environ["RENDEREMEDIA"], os.environ["RENDERERSRC"], "net/rsrc", "net/media"]
     for path in rsrcRoot:
         searchFile = '%s%s' % (path, rsrc)
+        if "backgroun" in rsrc:
+            print("SEARCH RSRC", searchFile)
         if language:
             splitSearchFile = os.path.split(searchFile)
             languageSearchFile = '%s/%s/%s' % (splitSearchFile[0], language, splitSearchFile[1])

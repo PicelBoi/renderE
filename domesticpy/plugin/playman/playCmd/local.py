@@ -16,7 +16,7 @@ def init(config):
     global _params
     _config = twccommon.Data()
     _config.__dict__.update(config.__dict__)
-    _config.root = '%s/local' % (_config.productRoot,)
+    _config.root = '/usr/twc/domestic/products/pm/local'
     _config.shareDir = '%s/share' % (_config.root,)
     _config.defaultPlaylistGroup = 'DefaultUS'
     _params = twccommon.Data()
@@ -124,9 +124,9 @@ _schedGroupOverrideTmpl = "[\n    DynamicSchedule('%(group)s.%(durationSeconds)s
 _schedGroupDefaultTmpl = "[\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n    CompositeSchedule([\n        StaticSchedule('Fallback%(durationSeconds)s'),\n        StaticSchedule('FallbackLdl%(durationSeconds)s'),\n    ]),\n    StaticSchedule('Fallback%(durationSeconds)s'),\n]"
 _schedNoFallbackTmpl = "[\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n]"
 _schedNoFallbackGroupOverrideTmpl = "[\n    DynamicSchedule('%(group)s.%(durationSeconds)s.%(version)s'),\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n]"
-_flavorMap = {'S': (57 * 30 + 20, 0, 1), 'D': (60 * 30, 0, 0), 'E': (60 * 30, 1, 0), 'K': (90 * 30, 0, 0), 'O': (90 * 30, 1, 0), 'N': (120 * 30, 0, 0), 'L': (120 * 30, 1, 0), 'M': (120 * 30, 2, 0)}
+_flavorMap = {'S': (57 * 30 + 20, 0, 1), 'D': (60 * 30, 0, 0), 'E': (60 * 30, 1, 0), 'K': (90 * 30, 0, 0), 'O': (90 * 30, 1, 0), 'N': (120 * 30, 0, 0), 'L': (120 * 30, 1, 0), 'M': (120 * 30, 2, 0), 'T': (140 * 30, 0, 0)}
 
-forcelascrawl = False
+forcelascrawl = True
 
 def _getLasCrawlText():
     print('get lascrawl')

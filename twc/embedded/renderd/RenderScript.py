@@ -21,7 +21,7 @@ class Layer(ObjectWrapper):
 
     def __init__(self):
         self.pages = []
-        self.timer = 0
+        self.timer = -1
         self.totals = []
         self.pa = 0
         return
@@ -91,7 +91,7 @@ class Page(ObjectWrapper):
     def duration(self):
         return self._duration
 
-    def __del__(self):
+    def __del__(self, manual=False):
         for i in self._elements:
             rg.unloadqueue.append(i)
 
@@ -375,11 +375,11 @@ class GraphicRenderable(Renderable):
         self._position = (0, 0)
         self._size = (0, 0)
         self.effects = []
-        self.sequencer = None
         self.visible = True
         self.setTransitionable(1)
-        
+        self.seq_start_after = False
         self._color = (1, 1, 1, 1)
+        self.unloaded = False
     
     def size(self):
         return self._size
@@ -400,6 +400,7 @@ class GraphicRenderable(Renderable):
         return
 
     def setPosition(self, x, y):
+        self.seq_start_after = True
         self._position = (x, y)
         return
 
@@ -566,6 +567,8 @@ class Text(GraphicRenderable):
         return
 
     def size(self):
+        if self.bounds:
+            return self.bounds
         return self.basesize
 
     def setBoundingBoxSize(self, w, h):
@@ -595,6 +598,8 @@ class Marquee(Text):
         #return _renderd.Marquee_setSpeed(self, step)
         self.step = step
         return
+    
+    
 
 
 class QTMovie(GraphicRenderable):
@@ -1176,7 +1181,7 @@ class AudioClip(AudioRenderable):
         return
 
     def duration(self):
-        return (self.file.get_length()*30)
+        return int(self.file.get_length()*30)
         return
 
     def size(self):
@@ -1231,7 +1236,7 @@ class EffectSequencer(Renderable):
     def __init__(self, target, repeat=0, loopLimit=0):
         self.effects = []
         self.activeeffects = []
-        self.timer = -1 #first frame is time 0 but 1 gets added first
+        self.timer = -1 #+target.seq_start_after #first frame is time 0 but 1 gets added first
         self.total = 0
         self.repeat = repeat
         self.loopLimit = loopLimit

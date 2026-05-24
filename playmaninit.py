@@ -26,3 +26,4 @@ pmbl.init(rg.configs["playman"])
 if twc.personality == "WxScan":
     pmrs.init(rg.configs["playman"])
     pmbgm.init(rg.configs["playman"])
+

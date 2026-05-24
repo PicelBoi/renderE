@@ -5,6 +5,7 @@
 # Compiled at: 2007-05-14 11:20:55
 import os, stat, sys, time, twc, twc.DataStoreInterface as ds, twc.MiscCorbaInterface, twc.dsmarshal as dsm, twc.playlist, twc.DataEventLog as DataEventLog, twccommon, twccommon.Log as Log, wxscan, twcWx.mapping, wxscan.PageCounter as PageCounter, wxscan.SunSafetyFactManager, wxscan.RunLog, wxscan.CSAudioLog
 import rendereglobals as rg
+import twccommon.Log
 
 def init(config):
     global _config
@@ -29,16 +30,16 @@ def load(playlist, startTime, newClock):
         _pl._rmOldLocalModules(['%s/lib' % _ROOT])
         (package, packageInst, duration) = playlist[0]
         duration = int(duration)
-        Log.info('generating playlist for %s.%s' % (package, packageInst))
+        print('generating playlist for %s.%s' % (package, packageInst))
         params = wxscan.getPkgAttribs(package, packageInst)
         schedName = _selectSchedule(params)
         _pl.setDefaultParams(params)
         try:
             schedule = twc.playlist.getSchedule(schedName, duration * 30, _pl)
-            Log.info('Found legitimate schedule')
+            print('Found legitimate schedule', schedName, schedule)
         except:
-            Log.logCurrentException('error with selected schedule %s for %s.%s' % (schedName, package, packageInst))
-            Log.warning('attempting fallback playlist for duration %d' % duration)
+            print('error with selected schedule %s for %s.%s' % (schedName, package, packageInst))
+            print('attempting fallback playlist for duration %d' % duration)
             if duration >= 120:
                 package = 'Core1'
             else:
@@ -55,11 +56,13 @@ def load(playlist, startTime, newClock):
         pkgData = twc.Data()
         logSchedule = []
         Log.info('About to loop')
+        si = []
         for (prodType, sched) in schedule.items():
-            ppsched = map((lambda e: (e.getParams().product, e.getDuration())), sched)
+            ppsched = list(map((lambda e: (e.getParams().product, e.getDuration())), sched))
             logSchedule.append((prodType, ppsched))
-            Log.info('building render-script for dynamic playlist %s: %s' % (prodType, ppsched))
-            startFrameOffset = 0
+            print('building render-script for dynamic playlist %s: %s' % (prodType, ppsched))
+            si.append(prodType)
+            startFrameOffset = int(time.time())*30
             inclpaths = []
             inclpaths.append('%s/%s/incl/' % (_ROOT, prodType))
             inclpaths.append('%s/incl/' % (_ROOT,))
@@ -71,24 +74,27 @@ def load(playlist, startTime, newClock):
                 try:
                     fname = _buildPresFile(prodType, prod, inclpaths)
                     fnames.append(fname)
+                    si.append(prodType)
                     startFrameOffset += prod.getDuration()
                     prodData = twc.Data()
                     prodData.params = prod.getParams()
                     prodData.data = prod.getData()
                     prodData.testData = prod.getTestData()
                     setattr(pkgData, prod.getName(), prodData)
+                    print("SFO", prod.getName(), startFrameOffset)
                 except:
                     Log.logCurrentException('error building %s:%s pres' % (package, prod.getParams().product))
 
         pkgData.schedule = logSchedule
         dl.writeData(package, pkgData)
         _lastPlaylist = playlist
-        Log.info('running render-script')
-        for fname in fnames:
+        for i, fname in enumerate(fnames):
+            print('running render-script', fname, si[i])
             try:
                 _runRenderScriptFile(fname)
-            except:
-                Log.logCurrentException('error running pres %s' % (fname,))
+            except Exception as e:
+                print('error running pres %s' % (fname,))
+                twccommon.Log.logCurrentException()
 
         twcWx.mapping.refreshAll()
     finally:
@@ -138,31 +144,31 @@ class _ProdLoader(twc.products.ProductLoader):
         return
 
     def _rmOldLocalModules(self, libpaths):
-        Log.debug('checking %s for old dynamic pm modules' % libpaths)
+        Log.debug('checking %s for old dynamic pm modules, actually nvm' % libpaths)
         clean = []
-        for (mname, mod) in sys.modules.items():
-            try:
-                fname = mod.__file__
-            except AttributeError:
-                continue
+        # for (mname, mod) in sys.modules.items():
+        #     try:
+        #         fname = mod.__file__
+        #     except AttributeError:
+        #         continue
 
-            path = os.path.dirname(fname)
-            if path not in libpaths:
-                continue
-            purge = 0
-            try:
-                mtime = os.stat(fname)[stat.ST_MTIME]
-                if self._purgeTime < mtime:
-                    purge = 1
-            except Exception:
-                purge = 1
+        #     path = os.path.dirname(fname)
+        #     if path not in libpaths:
+        #         continue
+        #     purge = 0
+        #     try:
+        #         mtime = os.stat(fname)[stat.ST_MTIME]
+        #         if self._purgeTime < mtime:
+        #             purge = 1
+        #     except Exception:
+        #         purge = 1
 
-            if purge:
-                Log.info('purging dynamic pm module %s because it is outdated' % mname)
-                clean.append(mname)
+        #     if purge:
+        #         Log.info('purging dynamic pm module %s because it is outdated' % mname)
+        #         clean.append(mname)
 
-        for mname in clean:
-            del sys.modules[mname]
+        # for mname in clean:
+        #     del sys.modules[mname]
 
         return
 
@@ -240,12 +246,12 @@ def _flush():
 def _selectSchedule(params):
     package = params.package
     packageInst = params.packageInst
-    suffixes = [1, 2, 3, 4, 5, 6, 7]
-    if package in [8, 9, 10, 11, 12, 13, 14]:
+    suffixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    if package in ['Core1', 'Core2', 'Core3', 'Core4', 'Core2Spanish', 'Core4Spanish', 'LocalBroadcaster']:
         np = _estWeatherBulletinPages(package, packageInst)
         np = min(np, 2)
         return '%s.%s' % (package, suffixes[np])
-    elif package in [17, 18, 19, 20, 21]:
+    elif package in ['Core5', 'Golf', 'Ski', 'Travel', 'NullPackage']:
         return '%s.%s' % (package, suffixes[0])
     elif package in ['International']:
         flavor = _getPackageFlavor(params, 1, 7, 1)
@@ -285,7 +291,7 @@ def _estWeatherBulletinPages(package, packageInst):
 def _getPackageFlavor(params, min, max, default=1):
     flavor = getattr(params, 'packageFlavor', default)
     if flavor not in range(min, max + 1):
-        Log.warning('invalid packageFlavor (%s) for %s.%d; using default flavor' % (flavor, params.package, params.packageInst))
+        print('invalid packageFlavor (%s) for %s.%d; using default flavor' % (flavor, params.package, params.packageInst))
         return default
     return flavor
     return

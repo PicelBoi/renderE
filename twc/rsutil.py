@@ -602,4 +602,12 @@ _windDirectionTableSpanish[14] = 'ONO'
 _windDirectionTableSpanish[15] = 'NO'
 _windDirectionTableSpanish[16] = 'NNO'
 _windDirectionTableSpanish[17] = 'VAR'
-_week = [89, 90, 91, 92, 93, 94, 95]
+_week = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+]

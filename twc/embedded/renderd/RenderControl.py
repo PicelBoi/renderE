@@ -36,7 +36,12 @@ def unloadLayer(l): #i'd deprecate this but it may still have some sort of value
             rg.rl.unload_texture(l.texture)
             l.texture = None
 
+rct = 0
+rctb = 0
+rctf = 0
+import time as t
 def actuallyRunAQueuedCommand(cmd):
+    global rct, rctb, rctf
     print(f"processing command: {type(cmd).__name__}")
     if type(cmd) in (SetLayer, SetLayerCmd):
         ix = -1
@@ -177,7 +182,7 @@ def modifyNamedLayer(name, newName, depth, repeat, autoDestroy, time=0, frameOff
     cmd = ModifyNamedLayerCmd(name, newName, depth, repeat, autoDestroy)
     return queueCommand(cmd, time, frameOffset)
     return
-
+import time as _time
 
 def setLayer(name, layer, time=0, frameOffset=0):
     cmd = SetLayerCmd(name, layer)

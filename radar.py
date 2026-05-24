@@ -30,8 +30,7 @@ class AnimatedMap(twc.products.Product):
         self._ignoreTimeGaps        = 0
 
         # set image root
-        TWCPERSDIR = os.environ['TWCPERSDIR']
-        imageRoot = TWCPERSDIR + '/data/volatile/images'
+        imageRoot = os.environ["RENDEREROOT"]
         self.updateData(
                 # here's the MOST important thing we set in here -- we need this
                 # productString for "everything" in the map world. We use it to

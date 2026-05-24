@@ -28,9 +28,15 @@ def createImage(self, name, evict=0, x1=0, y1=0, x2=1, y2=1):
         print(f"No suitable image found for {ogname}!")
         exit(1)
     
-    im = Image.open(name).convert("RGBA")
     arr = BytesIO()
-    im.save(arr, format="PNG")
+    if name.endswith((".tif", ".tiff")) and False: #keeping this just in case
+        im = pg.image.load(name)
+        im2 = pg.Surface(im.size, pg.SRCALPHA)
+        im2.blit(im, (0, 0), special_flags=pg.BLEND_PREMULTIPLIED)
+        pg.image.save(im2, arr, "PNG")
+    else:
+        im = Image.open(name).convert("RGBA")
+        im.save(arr, format="PNG")
     arr = arr.getvalue()
     self.im2 = rl.load_image_from_memory('.png', arr, len(arr))
     rl.image_alpha_premultiply(self.im2)
@@ -66,6 +72,7 @@ def createIcon(self, name, evict=0):
         f.save(arr, format="PNG")
         arr = arr.getvalue()
         img = rl.load_image_from_memory('.png', arr, len(arr))
+        rl.image_alpha_premultiply(img)
         self._ims.append(img)
     
     self.textures = None

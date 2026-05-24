@@ -215,7 +215,7 @@ class _ProdLoader(twc.products.ProductLoader):
         return
 
     def loadProduct(self, prodType, prodName, prodInst):
-        Log.info('loading product %s_%s...' % (prodType, prodName))
+        print('loading product %s_%s...' % (prodType, prodName))
         params = self.getDefaultParams()
         pparams = getAttribs('%s_%s' % (prodType, prodName), params)
         params = twccommon.mergeStructs([params, pparams])
@@ -305,6 +305,10 @@ def _findFile(prodType, fname):
     paths = ['%s/%s' % (_ROOT, prodType), _ROOT]
     paths2 = ['%s/%s' % (_NETROOT, prodType), _NETROOT]
     paths3 = ['%s/%s' % (_NETROOT, prodType), _NETROOT]
+    print("FINDFILE PATHS")
+    print(paths)
+    print(paths2)
+    print(paths3)
     pathsSearched = paths
     while len(paths) > 0:
         fullname = paths[0] + '/%s' % fname
@@ -368,9 +372,11 @@ def _buildBestSchedPresentations(argData, schedLoaders):
             schedule = schedLoader.getSchedule(argData.duration)
             if twc.personality == "FlatRock":
                 for (prodType, playlist) in schedule.items():
+                    print("Setting Playlist Schedule", prodType, playlist)
                     prodLabels = []
                     for prod in playlist:
                         labels = prod.getLabel()
+                        print("ProdLabel", labels)
                         for labelData in labels:
                             if labelData.label == '*':
                                 continue
@@ -406,6 +412,7 @@ def _buildViewportPresentation(argData, prodType, playlist):
     vpPres.prodType = prodType
     vpPres.prodPresentations = []
     vpPres.layerProps = dsm.configGet('viewport.%s' % prodType)
+    print("LPROPS", vpPres.layerProps, 'viewport.%s' % prodType)
     vpPres.layerProps.name = '%s_%s' % (prodType, argData.id)
     vpPres.layerProps.expire = argData.expire
     if twc.personality == "Perris":

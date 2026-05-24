@@ -4,6 +4,7 @@
 # Embedded file name: MiscCorbaInterface.py
 # Compiled at: 2007-01-12 11:17:30
 import twccommon.Log
+import tscard
 interface = None
 
 def signalEvent(channelName, eventType, eventValue):
@@ -18,8 +19,7 @@ def runRenderScript(rsName, host='localhost', port=4000, nsName='Renderd'):
 
 
 def queueMovie(moviefile, host='localhost', port=4000, nsName='Vspoold'):
-    return _getInterface().queueMovie(moviefile, host, port, nsName)
-    return
+    tscard.queueMovie(moviefile)
 
 
 def setMovieLooping(val, host='localhost', port=4000, nsName='Vspoold'):

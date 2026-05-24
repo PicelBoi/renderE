@@ -35,4 +35,6 @@ def getTip():
     return str
     return
 
-
+import nethandler as nh
+import domestic.HeatSafetyTipManager as hsm
+hsm.init(nh.requestNetAssetExt("/usr/twc/domestic/data/heatSafetyTips.data"))

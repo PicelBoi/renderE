@@ -16,6 +16,12 @@ class Observation(twc.products.Product):
             return None
             
         obx = twccommon.DefaultedData(obs)    
+        if twc.personality == "FlatRock":
+            skyCond = wxDataUtil.formatSkyCondition(
+                obx.skyCondition, 'Observation')
+            obx.skyIcon = twc.findRsrc(
+                '/icons/tiny/%s' % skyCond.iconFile, "mv")
+            obx.skyText = skyCond.textModifier
             
         return obx
 

@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.2 (main, Feb  4 2025, 14:51:09) [Clang 16.0.0 (clang-1600.0.26.6)]
 # Embedded file name: dataUtil.py
 # Compiled at: 2005-12-01 07:18:53
-import twccommon, twcWx.SkyCondMapping as sky, twcWx.TextFcstMapping as txt, twcWx.IncidentTypeMapping as inc, twcWx.BackgroundMusicMapping as bkgMusic, twcWx.PromoMessageMapping as promoMsg
+import twccommon, twcWx.SkyCondMapping as sky, twcWx.TextFcstMapping as txt, twcWx.IncidentTypeMapping as inc, twcWx.BackgroundMusicMapping as bkgMusic, twcWx.PromoMessageMapping as promoMsg, twcWx.WelcomeMessageMapping as welcomeMsg
 incidentTypeMap = inc.IncidentTypeMapping(1)
 
 def getIncidentType(typeID, mappingFile, default=None):
@@ -77,6 +77,24 @@ def getPromoMessageList(mappingFile):
 
 def getPromoMessageAt(mappingFile, index):
     list = promoMsgMap.getList(mappingFile)
+    try:
+        result = promoMsgMap[index]
+        return result
+    except:
+        return promoMsgMap[0]
+
+    return
+
+welcomeMsgMap = welcomeMsg.WelcomeMessageMapping(1)
+
+def getWelcomeMessageList(mappingFile):
+    result = welcomeMsgMap.getList(mappingFile)
+    return result
+    return
+
+
+def getWelcomeMessageAt(mappingFile, index):
+    list = welcomeMsgMap.getList(mappingFile)
     try:
         result = promoMsgMap[index]
         return result

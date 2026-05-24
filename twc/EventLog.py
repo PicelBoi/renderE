@@ -34,7 +34,7 @@ class Event(IEvent):
 
     def attributes(self):
         attrs = self.__dict__.items()
-        return filter((lambda e: e[0][0] != '_'), attrs)
+        return list(filter((lambda e: e[0][0] != '_'), attrs))
         return
 
     def content(self):

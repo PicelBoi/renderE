@@ -82,6 +82,7 @@ elif twc.personality == "FlatRock":
         else:
             twccommon.Log.warning('Unknown displayMode=%s' % displayMode)
             playlistSchedule = None
+            playlistSchedule = dsm.defaultedGet('Config.%s.Playlist.NationalLdl.nationalLdlUp' % dsm.getConfigVersion())
         if playlistSchedule == None:
             twccommon.Log.error('Unable to choose LDL playlist. No LDL Playlists are configured!')
             return None
@@ -123,13 +124,15 @@ elif twc.personality == "FlatRock":
                 return 0
             duration = _config.duration
         tmpLdlWarningMode = _getLdlWarningMode(bulletins)
-        eventValue = repr((playlistId, duration, _config.expiration, "[DynamicSchedule('%s')]" % playlistName, twccommon.Data(ldlBulletins=bulletins, ldlWarningMode=tmpLdlWarningMode, nationalLdl=1, displayMode=displayMode)))
+        eventValue = ((playlistId, duration, _config.expiration, "[DynamicSchedule('%s')]" % playlistName, twccommon.Data(ldlBulletins=bulletins, ldlWarningMode=tmpLdlWarningMode, nationalLdl=1, displayMode=displayMode)))
         pcpm.load(*eventValue)
         return 1
         return
 
 if twc.personality == "Perris":
     def toggleNationalLDL(id, activate, time=0, frame=0):
+        if time is None:
+            time = 0
         print("i am the")
         global _activate
         if _activate not in vars():
@@ -155,7 +158,7 @@ if twc.personality == "Perris":
         return
 elif twc.personality == "FlatRock":
     def run(playlistId, time, frame):
-        eventValue = repr((playlistId, time, frame, twccommon.Data(nationalLdl=1, displayMode=_displayMode)))
+        eventValue = ((playlistId, time, frame, twccommon.Data(nationalLdl=1, displayMode=_displayMode)))
         pcpm.run(*eventValue)
         return
     

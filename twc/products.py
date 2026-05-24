@@ -201,7 +201,12 @@ class ProductLoader:
     def _parseProductDoc(self, doc):
         dom = None
         try:
-            dom = xml.dom.minidom.parseString(doc)
+            try:
+                dom = xml.dom.minidom.parseString(doc)
+            except Exception as e:
+                with open("doc_crash.txt", "w") as f:
+                    f.write(doc)
+                raise e
             impls = dom.documentElement.getElementsByTagName('impl')
             prodClass = _processImpls(impls)
             rss = dom.documentElement.getElementsByTagName('rs')
@@ -220,8 +225,12 @@ class ProductLoader:
 
     def _loadProductFile(self, fname):
         f = None
+        fn2 = nethandler.requestNetAssetExt(fname)
+        #print("Loading Product:", os.path.basename(fname))
+        if fn2 is None:
+            fn2 = fname
         try:
-            f = open(fname)
+            f = open(fn2)
             doc = f.read()
             return self._parseProductDoc(doc)
         finally:
@@ -260,7 +269,7 @@ def _processImpls(impls):
     ns["reduce"] = reduce
     ns["functools"] = functools
     ns["filterfixer9000"] = filterfixer9000
-    code = loadtools.fixsort(py).replace("os.access", "newaccess").replace("os.stat", "newstat").replace("os.path.exists", "newexists").replace("filter", "filterfixer9000").replace("os.path.join", "newjoin")
+    code = loadtools.fixsort(py).replace("os.access", "newaccess").replace("os.stat", "newstat").replace("os.path.exists", "newexists").replace("filter", "filterfixer9000").replace("os.path.join", "newjoin").replace("    \t", "        ").replace("\t", "        ")
     implid += 1
     exec(code, ns, ns)
     prodClass = ns['Product']

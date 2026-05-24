@@ -31,8 +31,7 @@ class AnimatedMap(twc.products.Product):
         self._ignoreTimeGaps        = 0
 
         # set image root
-        TWCPERSDIR = os.environ['TWCPERSDIR']
-        imageRoot = TWCPERSDIR + '/data/volatile/images'
+        imageRoot = os.environ["RENDEREROOT"]
         self.updateData(
                 # here's the MOST important thing we set in here -- we need this
                 # productString for "everything" in the map world. We use it to
@@ -264,7 +263,9 @@ class ForecastMap(twc.products.Product):
         )
 
 
-    def _getDailyForecastData(self, coopId, timePeriod, recType, dataType):
+    def _getDailyForecastData(self, coopId, timePeriod, recType, dataType=None):
+        if dataType is None:
+            return self._getDailyForecastDataWxs(coopId, timePeriod, recType)
         value = None
         
         # key = {recType}.{coopId}.{time_period}.{dataType}
@@ -284,8 +285,37 @@ class ForecastMap(twc.products.Product):
 
         return value
 
+    def _getDailyForecastDataWxs(self, coopId, timePeriod, dataType):
+        value = None
+
+        # key = dailyFcst.{coopId}.time_period
+        # i.e. - dailyFcst.7219000.1060719026
+        fcstKey  = 'dailyFcst.%s.%d' % (coopId,timePeriod,)
+        fcstData = dsm.defaultedGet(fcstKey)
+
+        if fcstData is not None:
+            fcstData = twccommon.DefaultedData(fcstData)
+
+            # TODO: add all other types to be supported
+            if dataType == 'highTemp':
+                value = fcstData.highTemp
+            elif dataType == 'lowTemp':
+                value = fcstData.lowTemp
+            elif dataType == 'daySkyCondition':
+                value = wxDataUtil.formatSkyCondition(
+                fcstData.daySkyCondition, 'Forecast').iconFile
+            elif dataType == 'eveningSkyCondition':
+                value = wxDataUtil.formatSkyCondition(
+                fcstData.eveningSkyCondition, 'Forecast').iconFile
+            elif dataType == 'golfIndex':
+                value = fcstData.golfIndex
+
+        return value
+
         
-    def _loadDataTimePeriod(self, timePeriod, recType, valueField, iconField):
+    def _loadDataTimePeriod(self, timePeriod, recType=None, valueField=None, iconField=None):
+        if recType is None and valueField is None and iconField is None:
+            return self._loadDataTimePeriodWxs(timePeriod)
         params = twccommon.DefaultedData(self.getParams())
         # we can't fill in the 'data' member variable here like the
         # other _loadData() methods since products like
@@ -369,5 +399,77 @@ class ForecastMap(twc.products.Product):
         timePeriodData.tiffImage = params.tiffImage
         timePeriodData.labeledTiffImage = params.labeledTiffImage
         timePeriodData.textString = params.textString
+
+        return timePeriodData
+
+    def _loadDataTimePeriodWxs(self, timePeriod):
+        params = twccommon.DefaultedData(self.getParams())
+        # we can't fill in the 'data' member variable here like the
+        # other _loadData() methods since products like
+        # RegionalForecastConditions call this function several
+        # times with different time periods. Each call would
+        # would overwrite 'data' each time. SO we used 'timePeriodData'.
+        timePeriodData = twccommon.Data()
+        # assume no data (until we see some)
+        timePeriodData.noDataAvailable = 1
+
+        # fcstValue
+        fdata = []
+        validValueList = []
+        # If params has a fcstValue field (fcstValue != None)
+        # and it is not empty (fcstValue != [])
+        if (params.fcstValue):
+            for properties,elements in params.fcstValue:
+                # what data value are we looking for in the Fcst?
+                dataType = properties[5]
+
+                updatedElements = []
+                for item in elements:
+                    station = item[0]
+                    position   = item[1]
+
+                    # getFcstData
+                    value = self._getDailyForecastData(station, timePeriod, dataType)
+                    # Note: zero is a valid temp, so check for None
+                    validValueList.append(value != None) # Update a flag for each element
+                    updatedElements.append((value,position))
+
+                fdata.append((properties, tuple(updatedElements)))
+
+            timePeriodData.fcstValue = fdata
+
+            # fcstIcon
+            idata = []
+            validIconList = []
+            # If params has a fcstIcon field (fcstIcon != None)
+            # and it is not empty (fcstIcon != [])
+            if (params.fcstIcon):
+                for properties,elements in params.fcstIcon:
+                    # icons don't have properties, skip to elements
+                    updatedElements = []
+                    for item in elements:
+                        station = item[0]
+                        position   = item[1]
+
+                        # getFcstData
+                        iconFile = self._getDailyForecastData(station, timePeriod, 'daySkyCondition')
+                        validIconList.append(iconFile != None) # Update a flag for each element
+                        updatedElements.append((iconFile,position))
+
+                    idata.append((properties, tuple(updatedElements)))
+
+                timePeriodData.fcstIcon = idata
+
+            # Now create a list defining if the data is valid for each location
+            # This list can be used to avoid displaying the city name if the data isn't valid.
+            # The current rule is the location is valid if any part (temp, icon, ...) is valid
+            timePeriodData.validLocList = list(map((lambda a,b: a or b), validValueList, validIconList))
+
+            # Now combine the valid flag for all locations into a single value.
+            # If any location is valid, then clear the noDataAvailable flag.
+            if ( reduce(lambda a, b: a or b, timePeriodData.validLocList, 0) ):
+                timePeriodData.noDataAvailable = 0
+            else:
+                timePeriodData.noDataAvailable = 1
 
         return timePeriodData

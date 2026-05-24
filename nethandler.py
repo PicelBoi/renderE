@@ -12,6 +12,8 @@ servers = [
 #    "https://archive.lewolfyt.cc/WxScanLive/"
 ]
 
+offline = False
+
 def newjoin(*args):
     pp = PurePath(*args).as_posix()
     jp = os.path.join(*args)
@@ -60,6 +62,8 @@ def requestNetAsset(path : str, extensions, check=False):
             if os.path.exists(spath):
                 return spath
             print(spath)
+            if offline:
+                continue
             if r.head(spath).ok:
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 f = open(out, "wb")
@@ -70,6 +74,8 @@ def requestNetAsset(path : str, extensions, check=False):
     return None
 
 def requestNetAssetExt(path : str, ext=None, check=False):
+    if os.path.exists(path):
+        return path
     out = newjoin(temp, path.strip("/"))+("."+ext if ext else "")
     if os.path.exists(out):
         return out
@@ -80,6 +86,8 @@ def requestNetAssetExt(path : str, ext=None, check=False):
         if os.path.exists(spath):
             return spath
         print(spath)
+        if offline:
+            continue
         if r.head(spath).ok:
             os.makedirs(os.path.dirname(out), exist_ok=True)
             f = open(out, "wb")

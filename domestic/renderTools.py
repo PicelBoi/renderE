@@ -62,7 +62,9 @@ def sequenceOnPage(page, grSet, delayList, repeat=0):
 
 
 def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDataBar=0, fadeDuration=5, displayDuration=0, rgba=None):
+    print("DNA", f"_{twc.personality}_")
     if twc.personality == "FlatRock":
+        print("FlatrockDNA")
         if rgba:
             (r, g, b, a) = rgbaConvert(*rgba)
         else:
@@ -137,8 +139,105 @@ def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDa
             page.addItem(ef)
         return renderObj
 
+modern = False
+
+def createTitleBarModern(string1, string2):
+    vBevSize = 3
+    hBevSize = 3
+    padV = 14
+    padH = 12
+    bg1X = vBevSize - 3
+    bg1Y = hBevSize
+    bg1W = 0
+    tr1X = bg1X + padH
+    tr1Y = bg1Y + padV
+    titleFont1 = TTFont('/rsrc/fonts/Interstate-Bold', 36, 0)
+    titleFont2 = TTFont('/rsrc/fonts/Interstate-Bold', 30 + 6, 0)
+    crTitleTxt = CompositeRenderable()
+    crTitleBev = CompositeRenderable()
+    
+    bgSide = 10
+    bgSide2 = 8
+    bgInset = 3
+    bg1H = 50
+    #bg2H = 40
+    bg2H = 50
+    bg2O = 10
+    
+    bg2V = 5
+    bg2TV = 2
+    
+    bg2V = 0
+    bg2TV = 0
+    
+    if string1:
+        tr1 = Text(titleFont1, string1)
+        tr1w, tr1h = tr1.size()
+        if string2:
+            tr2 = Text(titleFont2, string2)
+            tr2w, tr2h = tr2.size()
+            pp = Polygon()
+            (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
+            pp.addVertex(bgSide, 0, r, g, b, a)
+            pp.addVertex(0, bgSide, r, g, b, a)
+            pp.addVertex(0, bg2H, r, g, b, a)
+            pp.addVertex(tr2w+padH*2-bgSide+bg2O, bg2H, r, g, b, a)
+            pp.addVertex(tr2w+padH*2+bg2O, bg2H-bgSide, r, g, b, a)
+            pp.addVertex(tr2w+padH*2+bg2O, 0, r, g, b, a)
+            pp.setPosition(bg1X+tr1w, bg1Y+bg2V)
+
+            crTitleBev.addItem(pp)
+            
+            pp = Polygon()
+            (r, g, b, a) = rgbaConvert(235, 235, 235, 255)
+            (r2, g2, b2, a2) = rgbaConvert(235, 235, 235, 127)
+            pp.addVertex(bgSide2, 0, r2, g2, b2, a2)
+            pp.addVertex(0, bgSide2, r2, g2, b2, a2)
+            pp.addVertex(0, bg2H-bgInset*2, r, g, b, a)
+            pp.addVertex(tr2w+padH*2-bgSide2-bgInset*2+bg2O, bg2H-bgInset*2, r, g, b, a)
+            pp.addVertex(tr2w+padH*2-bgInset*2+bg2O, bg2H-bgSide2-bgInset*2, r, g, b, a)
+            pp.addVertex(tr2w+padH*2-bgInset*2+bg2O, 0, r2, g2, b2, a2)
+            pp.setPosition(bg1X+bgInset+tr1w, bg1Y+bgInset+bg2V)
+            
+            crTitleBev.addItem(pp)
+            
+            tr2.setPosition(tr1X+tr1w+bgInset+bg2O, tr1Y+bg2TV)
+            (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
+            tr2.setColor(r, g, b, a)
+            crTitleTxt.addItem(tr2)
+        pp = Polygon()
+        (r, g, b, a) = rgbaConvert(80, 139, 200, 255)
+        (r2, g2, b2, a2) = rgbaConvert(82, 121, 161, 255)
+        pp.addVertex(bgSide, 0, r2, g2, b2, a2)
+        pp.addVertex(0, bgSide, r2, g2, b2, a2)
+        pp.addVertex(0, bg1H, r, g, b, a)
+        pp.addVertex(tr1w+padH*2, bg1H, r, g, b, a)
+        pp.addVertex(tr1w+padH*2, 0, r2, g2, b2, a2)
+        pp.setPosition(bg1X, bg1Y)
+
+        crTitleBev.addItem(pp)
+        
+        pp = Polygon()
+        (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
+        (r2, g2, b2, a2) = rgbaConvert(20, 20, 20, 192)
+        pp.addVertex(bgSide2, 0, r2, g2, b2, a2)
+        pp.addVertex(0, bgSide2, r2, g2, b2, a2)
+        pp.addVertex(0, bg1H-bgInset*2, r, g, b, a)
+        pp.addVertex(tr1w+padH*2-bgInset*2, bg1H-bgInset*2, r, g, b, a)
+        pp.addVertex(tr1w+padH*2-bgInset*2, 0, r2, g2, b2, a2)
+        pp.setPosition(bg1X+bgInset, bg1Y+bgInset)
+        
+        crTitleBev.addItem(pp)
+        
+        tr1.setPosition(tr1X, tr1Y)
+        (r, g, b, a) = rgbaConvert(235, 235, 235, 255)
+        tr1.setColor(r, g, b, a)
+        crTitleTxt.addItem(tr1)
+    return (crTitleBev, crTitleTxt)
 
 def createTitleBar(string1, string2, s1BkgColor, s2BkgColor, s1TxtColor, s2TxtColor, s1ShdColor, s2ShdColor):
+    if modern:
+        return createTitleBarModern(string1, string2)
     (R, G, B, A) = s1ShdColor
     (r, g, b, a) = rgbaConvert(R, G, B, A)
     titleFont1 = TTFont('/rsrc/fonts/Interstate-Bold', 36, t=20, sr=r, sb=b, sg=g, sa=a)

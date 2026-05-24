@@ -73,7 +73,7 @@ def main():
         if duration > 0:
             d.duration = duration
         else:
-            flavorMap = {'D': 60, 'E': 60, 'F': 58, 'S': 57, 'K': 90, 'O': 90, 'P': 90, 'N': 120, 'L': 120, 'M': 120}
+            flavorMap = {'D': 60, 'E': 60, 'F': 58, 'S': 57, 'K': 90, 'O': 90, 'P': 90, 'N': 120, 'L': 120, 'M': 120, "T": 140}
             d.duration = flavorMap[flavor]
     if prodType == 'tag':
         if len(args_proper) > 1:

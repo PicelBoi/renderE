@@ -5,8 +5,9 @@ import twc.dsmarshal
 import twccommon
 import functools
 import rsfix
+import patches
 
-def compilers(rs):
+def compilers(rs, unp = True):
     ns = {"params": twccommon.Data()}
     path = None
     if os.path.exists(rs):
@@ -17,6 +18,8 @@ def compilers(rs):
         raise ValueError("rs file not found!")
     with open(path, "r") as f:
         data = f.read()
+    if unp:
+        data = patches.unprint(data)
     rseval : str = twc.psp.evalRenderScript(data, ns)
     #replace audiosequencer things
     rseval = rsfix.fix(rseval)

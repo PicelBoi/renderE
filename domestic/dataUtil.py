@@ -141,6 +141,7 @@ def getValidFileList(dataPath='./', prefix=None, suffix=None, startTimeNdx=None,
     imageData += '*[0-9]'
     if suffix:
         imageData += sep + suffix
+    print("IMAGELIST", imageData)
     imageList = glob.glob(imageData)
     if len(imageList) == 0:
         return returnList

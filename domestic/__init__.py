@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.2 (main, Feb  4 2025, 14:51:09) [Clang 16.0.0 (clang-1600.0.26.6)]
 # Embedded file name: __init__.py
 # Compiled at: 2007-01-12 11:33:26
-import os, os.path, twc, twc.dsmarshal, twc.psp, twccommon, twccommon.PluginManager, types, string, domestic.BulletinInfo, twcWx.dataUtil as wxDataUtil, domestic.SunRiseSet as SunRiseSet
+import os, os.path, twc, twc.dsmarshal, twc.psp, twccommon, twccommon.PluginManager, types, string, domestic.BulletinInfo, twcWx.dataUtil as wxDataUtil, domestic.SunRiseSet as SunRiseSet, domestic.HeatSafetyTipManager as HeatSafetyTipManager
 from domestic import dataUtil
 from domestic.Heuristic import *
 dsm = twc.dsmarshal
@@ -41,7 +41,7 @@ def checkRadarPrecip(RadarProductName, imageList=None):
        ConfigSet. This method assumes that the imageList passed in only
        contains valid images and is already sorted from OLDEST to NEWEST."""
     radarReturns = 0
-    imageRoot = '/twc/data/volatile/images/radar/us.cuts/'
+    imageRoot = os.path.join(os.environ["RENDEREROOT"], 'radar/us.cuts/')
     productString = 'Config.' + dsm.getConfigVersion() + '.' + RadarProductName
     if imageList == None:
         imageList = dataUtil.getValidFileList(dataPath=imageRoot, prefix=productString, suffix='*[0-9].tif', startTimeNdx=3, endTimeNdx=4, sortIndex=3)

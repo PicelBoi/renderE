@@ -28,7 +28,11 @@ def fixifsub(val):
 builtins.__dict__["ehuehuehue_i_added_a_function"] = fixifsub #this is the new winner of "most ridiculous python thing i have ever done"
 oldtime = time.struct_time
 
+def untab(stuff):
+    return stuff.replace("    \t", "        ").replace("\t", "        ")
+
 def unprint(stuff):
+    stuff = untab(stuff)
     lines = stuff.split("\n")
     finallines = []
     for l in lines:
@@ -36,9 +40,6 @@ def unprint(stuff):
             continue
         finallines.append(l)
     return "\n".join(finallines)
-
-def untab(stuff):
-    return stuff.replace("\t", "        ")
 
 from functools import reduce
 
@@ -100,7 +101,11 @@ def runrs(filename):
     crs = loadtools.compilers(filename)
     print(type(crs))
     ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "newjoin": rg.newjoin}
-    exec(crs.replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), ns, ns)
+    try:
+        exec(crs.replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), ns, ns)
+    except Exception as e:
+        tb.print_exc()
+        raise e
 
 def runrsc(filename):
     dat = "global layerProps\n"

@@ -19,9 +19,16 @@ import random
 import builtins
 builtins.__dict__["renderElog"] = print #for testing purposes only
 
-import domesticpy.plugin.playman.playCmd.local as pmlc
-import domesticpy.plugin.playman.playCmd.pm as pm
-import domesticpy.plugin.playman.playCmd.ldl as pmldl
+if twc.personality == "WxScan":
+    import wxscanpy.plugin.playman.playCmd.local as pmlc
+    import wxscanpy.plugin.playman.playCmd.pm as pm
+    import wxscanpy.plugin.playman.playCmd.ldl as pmldl
+    import wxscanpy.plugin.playman.playCmd.bulletin as pmbl
+else:
+    import domesticpy.plugin.playman.playCmd.local as pmlc
+    import domesticpy.plugin.playman.playCmd.pm as pm
+    import domesticpy.plugin.playman.playCmd.ldl as pmldl
+    import domesticpy.plugin.playman.playCmd.bulletin as pmbl
 import domestic.wxdata
 import json
 import traceback as tb
@@ -29,7 +36,7 @@ from datetime import datetime
 import patches
 import twc.dsmarshal as dsm
 import pickle
-
+import argparse
 import tscard
 
 DEBUG = False
@@ -38,18 +45,39 @@ SAVECR = False
 vidtex = None
 
 sdi = False
-if len(sys.argv) > 1:
-    sdi = True
-    tscard.SDI_URL = sys.argv[1]
-    print(f"Set SDI URL to {sys.argv[1]}")
+music_player = False
+
+aparse = argparse.ArgumentParser()
+aparse.add_argument("uri", nargs="?", help="Sets a URI for the media player. Setting this value to \"wxs\" will enable a music player that shuffles items in the bgm folder.")
+aparse.add_argument("-t", "--trans", action="store_true", help="Makes the window have a transparent background. This is useful for overlaying the LDL on content without using the built-in video system.")
+aparse.add_argument("-n", "--noframe", action="store_true", help="Removes the window frame.")
+aparse.add_argument("-o", "--offline", action="store_true", help="Disabled network connectivity.")
+aparse.add_argument("-g", "--grateful", action="store_true", help="Signifies that you are grateful for what you already have, and that you wouldn't like any more TWC content.")
+args = aparse.parse_args()
+
+grateful = args.grateful
+
+import nethandler as nh
+nh.offline = args.offline
+
+if args.uri:
+    path = args.uri
+    if path == "wxs":
+        music_player = True
+        print("WxScan music player enabled!")
+        tscard.SDI_URL = "music_player"
+    else:
+        sdi = True
+        tscard.SDI_URL = sys.argv[1]
+        print(f"Set SDI URL to {sys.argv[1]}")
 
 fov = 40
 screensize = (720, 480)
 zzz = 1
 rl = rg.rl
 
-#rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_UNDECORATED | rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT)
-rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_UNDECORATED)
+rl.set_config_flags((rl.ConfigFlags.FLAG_WINDOW_UNDECORATED * args.noframe) | (rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT * args.trans))
+#rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_UNDECORATED)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(("localhost", 7245))
@@ -124,8 +152,6 @@ camera = rl.Camera3D(
 
 planem = rl.gen_mesh_plane(1, 1, 1, 1)
 
-rl.set_target_fps(30)
-
 def frustum_size_at_z(z, fov_y_deg, aspect_ratio):
     fov_y = math.radians(fov_y_deg)
     height = z * math.tan(fov_y / 2)
@@ -164,6 +190,7 @@ def sockethandle():
             breaking = False
             expecting = int.from_bytes(conn.recv(4), "big")
             data = bytearray()
+            dat = None
             while True:
                 cdata = conn.recv(1024) #i'll have to figure out larger data chunks not-today
                 if not cdata:
@@ -208,19 +235,36 @@ def sockethandle():
                 except:
                     tb.print_exc()
             elif args[0] == "jsonload":
-                prodType = args[1]
-                dat = jsontodata(" ".join(args[2:]))
-                try:
-                    domestic.wxdata.loadData(prodType, dat)
-                except:
-                    tb.print_exc()
+                if not grateful:
+                    prodType = args[1]
+                    dat = jsontodata(" ".join(args[2:]))
+                    try:
+                        domestic.wxdata.loadData(prodType, dat)
+                    except:
+                        tb.print_exc()
             elif args[0] == "jsonrun":
-                prodType = args[1]
+                if grateful:
+                    l = Layer()
+                    p = Page(300)
+                    l.addPage(p)
+                    renderTools.dataNotAvailable(page=p, yPos=240+30, displayDuration=300, text="I worked hard to make this program! Get a real i1!")
+                    renderTools.dataNotAvailable(page=p, yPos=240, displayDuration=300, text="Be grateful that we even have i1 images!")
+                    renderTools.dataNotAvailable(page=p, yPos=240-30, displayDuration=300, text="Some people want to be handed everything in life.")
+                    
+                    RenderControl.createNamedLayer("Foreground", 51, 0, 1, 0, 0)
+                    RenderControl.setLayer("Foreground", l, time.time(), 0)
+                    RenderControl.activateLayer("Foreground", time.time(), 0)
+                else:
+                    prodType = args[1]
+                    dat = jsontodata(" ".join(args[2:]))
+                    try:
+                        domestic.wxdata.runData(prodType, dat)
+                    except:
+                        tb.print_exc()
+            elif args[0] == "setbulletin":
+                print("setbulletin")
                 dat = jsontodata(" ".join(args[2:]))
-                try:
-                    domestic.wxdata.runData(prodType, dat)
-                except:
-                    tb.print_exc()
+                domestic.wxdata.setBulletin(args[1], dat, dat.expiration)
             elif args[0] == "togglenat":
                 print("togglenat")
                 dat = json.loads(" ".join(args[1:]))
@@ -548,11 +592,16 @@ activedrawlayer = None
 
 drawlevel = 0
 
+setposition_absolute = (twc.personality != "Perris")
+
 def calceffects(quad):
     qqx, qqy = quad._position
     effects = quad.effects
     qqx = round(qqx)
     qqy = round(qqy)
+    if drawlevel == 0:
+        qqx *= activedrawlayer[10]
+        qqy *= activedrawlayer[11]
     qx, qy = qqx*1, qqy*1
     xw = quad._size[0]/720*(xxx*2)
     yw = quad._size[1]/480*(yyy*2)
@@ -585,8 +634,15 @@ def calceffects(quad):
         elif type(effect) == SetPosition:
             #xxw -= (effect.x)/720*(xxx*2)
             #yyw -= (effect.y)/480*(yyy*2)
-            qx += mod2(effect.x)
-            qy += effect.y
+            #qx = effect.x
+            #qy = effect.y
+            #if not quad.seq_start_after:
+            if setposition_absolute:
+                qx = effect.x
+                qy = effect.y
+            else:
+                qx += mod2(effect.x)
+                qy += effect.y
         elif type(effect) == SetSize:
             quad._size = (effect.w, effect.h)
         elif type(effect) == SetText:
@@ -614,9 +670,115 @@ def calceffects(quad):
     yyw = -qy/480*(yyy*2)
     mat = rl.matrix_multiply(mat, rl.matrix_translate(-xxx, -yyy, 0))
     if drawlevel == 0:
-        xxw -= (activedrawlayer[6]/720*(xxx*2))
-        yyw -= (activedrawlayer[7]/480*(yyy*2))
+        xxw -= ((activedrawlayer[6]+activedrawlayer[12])/720*(xxx*2))*activedrawlayer[10]
+        yyw -= ((activedrawlayer[7]+activedrawlayer[13])/480*(yyy*2))*activedrawlayer[11]
+    
+    # if drawlevel == 0:
+    #     xxw = (-qx-(quad._size[0]/2*activedrawlayer[10])-activedrawlayer[6]-activedrawlayer[12])/720*(xxx*2)
+    #     yyw = (-qy-(quad._size[1]/2*activedrawlayer[11])-activedrawlayer[7]-activedrawlayer[13])/480*(yyy*2)
+    # else:
+    #     xxw = (-qx-quad._size[0]/2)/720*(xxx*2)
+    #     yyw = (-qy-quad._size[1]/2)/480*(yyy*2)
     return xxw, yyw, mat, fader, qx, qy
+
+ps = """
+#version 330
+
+in vec3 vertexPosition;
+in vec2 vertexTexCoord;
+in vec4 vertexColor;
+
+out vec2 fragTexCoord;
+out vec4 fragColor;
+
+uniform mat4 mvp;
+
+void main() {
+    fragTexCoord = vertexTexCoord;
+    fragColor = vertexColor;
+    
+    gl_Position = mvp * vec4(vertexPosition, 1.0);
+}
+"""
+
+lclipfs = """
+#version 330
+
+in vec2 fragTexCoord;
+in vec4 fragColor;
+
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+
+uniform float xx;
+uniform float yy;
+uniform float ww;
+uniform float hh;
+
+
+uniform float xx2;
+uniform float yy2;
+uniform float ww2;
+uniform float hh2;
+
+
+out vec4 finalColor;
+
+void main() {
+    vec2 pos = gl_FragCoord.xy;
+
+    if ((
+        (pos.x < xx) ||
+        (pos.x > (xx + ww)) ||
+        (pos.y < yy) ||
+        (pos.y > (yy + hh))
+    ) ||
+    (
+        (pos.x < xx2) ||
+        (pos.x > (xx2 + ww2)) ||
+        (pos.y < yy2) ||
+        (pos.y > (yy2 + hh2))
+    )) {
+        discard;
+        //finalColor = vec4(pos.x/720, pos.y/480, 0, 1);
+    } else {
+        vec4 texelColor = texture(texture0, fragTexCoord);
+        finalColor = texelColor * colDiffuse * fragColor;
+    }
+}"""
+
+fs = """
+#version 330
+
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+out vec4 finalColor;
+void main() {
+    finalColor = texture(texture0, fragTexCoord) * fragColor * colDiffuse;
+}
+"""
+
+lclipshader = rl.load_shader_from_memory(ps, lclipfs)
+defaultshader = rl.load_shader_from_memory(ps, fs)
+
+bloc = rl.get_shader_location(lclipshader, "xx")
+bloc2 = rl.get_shader_location(lclipshader, "yy")
+bloc3 = rl.get_shader_location(lclipshader, "ww")
+bloc4 = rl.get_shader_location(lclipshader, "hh")
+
+bloc5 = rl.get_shader_location(lclipshader, "xx2")
+bloc6 = rl.get_shader_location(lclipshader, "yy2")
+bloc7 = rl.get_shader_location(lclipshader, "ww2")
+bloc8 = rl.get_shader_location(lclipshader, "hh2")
+
+print("shader", bloc, bloc2, bloc3, bloc4, bloc5, bloc6, bloc7, bloc8)
+
+rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(720*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(480*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 
 def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), premult=False):
     effects = quad.effects
@@ -625,6 +787,13 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     if isinstance(quad, Icon):
         rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_TRILINEAR)
     qqx, qqy = quad._position
+    
+    clipx = 0
+    clipy = 0
+    clipw = 720
+    cliph = 480
+    
+    
     if isinstance(quad, Text) or isinstance(quad, Clock):
         qqy += quad.descent
         #print(quad.ascent-quad.descent, quad.cimg.height)
@@ -632,18 +801,46 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         if quad.fnt.shadow:
             #qqx -= quad.fnt.sx
             qqy -= abs(quad.fnt.sy)+1
-    qqx = round(qqx)+off[0]
+    x_offset = 0
+    if isinstance(quad, Clock):
+        if quad.justification == Clock.CENTER:
+            x_offset = round(-quad._size[0]/2)
+        if quad.justification == Clock.RIGHT:
+            x_offset = -quad._size[0]
+    
+    qxbase = qqx + x_offset
+    qybase = qqy * 1
+    qqx = round(qqx)+off[0]+x_offset
     qqy = round(qqy)+off[1]
+    
+    if drawlevel == 0:
+        qqx = round(qqx * activedrawlayer[10])
+        qqy = round(qqy * activedrawlayer[11])
+        qxbase = round(qxbase * activedrawlayer[10])
+        qybase = round(qybase * activedrawlayer[11])
+    
     qx, qy = qqx*1, qqy*1
     xw = quad._size[0]/720*(xxx*2)
     yw = quad._size[1]/480*(yyy*2)
+    if drawlevel == 0:
+        xw *= activedrawlayer[10]
+        yw *= activedrawlayer[11]
+    
+    
+    wbase = quad.size()[0]
+    hbase = quad.size()[1]
+    
+    if drawlevel == 0:
+        wbase *= activedrawlayer[10]
+        hbase *= activedrawlayer[11]
+    
     
     mat = rl.matrix_rotate_xyz((math.radians(90), 0, math.radians(0)))
     mat = rl.matrix_multiply(mat, rl.matrix_scale(xw, yw, 1))
     fader = 1
     visible = not not quad.visible
     def applyeffect(effect : GraphicEffect):
-        nonlocal mat, xxw, yyw, fader, qx, qy, visible
+        nonlocal mat, xxw, yyw, fader, qx, qy, visible, clipx, clipy, clipw, cliph
         if type(effect) == Rotate:
             if effect.xr:
                 mat = rl.matrix_multiply(mat, rl.matrix_rotate_x(math.radians(effect.angle*effect.frame)))
@@ -672,8 +869,15 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
                 #xxw = (-quad._size[0]/2-effect.x)/720*(xxx*2)
                 # xxw -= (effect.x)/720*(xxx*2)
                 # yyw -= (effect.y)/480*(yyy*2)
-                qx += mod2(effect.x)
-                qy += effect.y
+                #qx = effect.x
+                #qy = effect.y
+                #if not quad.seq_start_after:
+                if setposition_absolute:
+                    qx = effect.x
+                    qy = effect.y
+                else:
+                    qx += mod2(effect.x)
+                    qy += effect.y
         elif type(effect) == SetSize:
             if not se:
                 quad._size = (effect.w, effect.h)
@@ -686,6 +890,13 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
             visible = effect.visible
             if effect.fader is not None:
                 fader = effect.fader
+        elif type(effect) == Clipper:
+            clipx = qxbase + (effect.left or 0)
+            clipy = qybase + (effect.bottom or 0)
+            
+            clipw = wbase - (effect.left or 0) + (effect.right or 0)
+            cliph = hbase - (effect.bottom or 0) + (effect.top or 0)
+            
         if hasattr(effect, "frame"):
             if not effect.frozen and not se:
                 effect.frame += 1
@@ -701,8 +912,8 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     loopover(effects)
     mat = rl.matrix_multiply(mat, rl.matrix_translate(-xxx, -yyy, 0))
     if drawlevel == 0:
-        xxw = (-qx-quad._size[0]/2-activedrawlayer[6])/720*(xxx*2)
-        yyw = (-qy-quad._size[1]/2-activedrawlayer[7])/480*(yyy*2)
+        xxw = (-qx-(quad._size[0]/2*activedrawlayer[10])-activedrawlayer[6]-activedrawlayer[12])/720*(xxx*2)
+        yyw = (-qy-(quad._size[1]/2*activedrawlayer[11])-activedrawlayer[7]-activedrawlayer[13])/480*(yyy*2)
     else:
         xxw = (-qx-quad._size[0]/2)/720*(xxx*2)
         yyw = (-qy-quad._size[1]/2)/480*(yyy*2)
@@ -724,7 +935,17 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         col = rl.Color(int(255*pfader), int(255*pfader), int(255*pfader), int(255*fader))
     rl.rl_disable_depth_test()
     rl.rl_disable_depth_mask()
+    
+    rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(clipx*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(clipy*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(clipw*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(cliph*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    
+    #print(clipx, clipy, clipw, cliph)
+    
     if visible:
+        plane.materials[0].shader = lclipshader
+        rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR if (drawlevel == 0 and (activedrawlayer[10] != 1 or activedrawlayer[11] != 1)) else (rl.TextureFilter.TEXTURE_FILTER_POINT if not isinstance(quad, Icon) else rl.TextureFilter.TEXTURE_FILTER_TRILINEAR))
         rl.draw_model_ex(plane, rl.Vector3(-xxw, -yyw, -zzz), rl.Vector3(0, 0, 0), 0, rl.Vector3(1, 1, 1), col)
 
 class DummyQuad():
@@ -752,6 +973,8 @@ def crop_text(surf: rg.pg.Surface):
             break
         final_left += 1
     return surf.subsurface(rg.pg.Rect(final_left, 0, surf.get_width()-final_left, surf.get_height()))
+
+skip_drawing = False
 
 def draw_poly(quad : TIFF_Image, tex=white):
     global drawlevel
@@ -825,7 +1048,7 @@ def draw_poly(quad : TIFF_Image, tex=white):
     pts = []
     
     for p in pts2:
-        pts.append((rl.vector3_transform(p[0], mat), p[1], p[2], p[3], p[4]))
+        pts.append((rl.vector3_transform(p[0], mat), p[1]*p[4], p[2]*p[4], p[3]*p[4], p[4]))
     #pts = pts2
     rl.rl_enable_smooth_lines()
     rl.rl_begin(rl.RL_TRIANGLES)
@@ -981,64 +1204,79 @@ def unload_tree(item):
 
 
 iiix = 0
+def page_getter(page_times, timer):
+    page_offsets = [0]
+    for time in page_times[:-1]:
+        if time == 0:
+            break
+        page_offsets.append(page_offsets[-1]+time)
+
+    page = 0
+    for i, o in enumerate(page_offsets):
+        if timer >= o:
+            page = i
+    return page
+
+ft = 0
 def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0}):
     global mode_3d_tracker
     global once
     global drawlevel
     global windbg
     global iiix
+    global ft
     if type(item) == Layer:
+        #this whole section has been cleaned up because the old one looked like a rat's nest
         item.timer += 1
-        al = []
+        last_forever = False
         if len(item.pages) == 0:
             return
-        al.append(item.pages[0][1])
-        if len(item.pages) > 0:
-            for i in item.pages[1:]:
-                al.append(al[-1]+i[1])
-        if extra["lloop"]:
-            if item.timer > al[-1]:
+    
+        page_times = [p[1] for p in item.pages]
+        total_time = sum(page_times)
+        current_page = page_getter(page_times, item.timer)
+        last_frame_page = page_getter(page_times, item.timer-1)
+    
+        # if skip_drawing:
+        #     return
+    
+        
+        #print(len(al))
+        
+        if activedrawlayer[5]:
+            if item.timer >= total_time:
                 item.timer = 0
+                for p in item.pages:
+                    for it in p[0]._elements:
+                        if type(it) == ScrollingCompositeRenderable:
+                            it.scroll = 0
         
-        ea = 0
-        broke = False
-        for i in range(len(item.pages)):
-            ea += 1
-            if item.pages[ea-1][1] == 0:
-                break
-            if item.timer < al[i]:
-                broke = True
-                break
-        
-        if len(item.pages) > 0:
-            if not item.pages[0][0].started == True:
-                item.pages[0][0].started = True
+        if item.timer < total_time:
+            if item.timer > 0:
+                if last_frame_page != current_page:
+                    for cmd in item.pages[current_page][0]._onEndCommands:
+                        RenderControl.actuallyRunAQueuedCommand(cmd)
+                    if not activedrawlayer[5]:
+                        item.pages[last_frame_page][0].__del__()
+                    for cmd in item.pages[current_page][0]._onStartCommands:
+                        RenderControl.actuallyRunAQueuedCommand(cmd)
+            else:
                 for cmd in item.pages[0][0]._onStartCommands:
                     RenderControl.actuallyRunAQueuedCommand(cmd)
-        if item.pa != (ea-1):
-            item.pages[item.pa][0].ended = True
-            for cmd in item.pages[item.pa][0]._onEndCommands:
-                RenderControl.actuallyRunAQueuedCommand(cmd)
-            if not extra["lloop"]:
-                item.pages[item.pa][0].__del__()
-                #windbg += "unloaded a page\n"
-            #and here
-            item.pa = (ea-1)
-            item.pages[item.pa][0].started = True
-            #...and here
-            for cmd in item.pages[item.pa][0]._onStartCommands:
-                RenderControl.actuallyRunAQueuedCommand(cmd)
-        elif (item.pa == (len(item.pages)-1) and not broke) and not item.pages[item.pa][0].ended:
-            item.pages[item.pa][0].ended = True
-            for cmd in item.pages[item.pa][0]._onEndCommands:
-                RenderControl.actuallyRunAQueuedCommand(cmd)
-            if not extra["lloop"]:
-                item.pages[item.pa][0].__del__()
-        else:
-            for cmd in item.pages[item.pa][0]._onFrameCommands:
-                if item.timer == cmd[1]:
-                    RenderControl.actuallyRunAQueuedCommand(cmd[0])
-        draw_item(item.pages[item.pa][0], extra)
+        elif item.timer == total_time:
+            if not last_forever:
+                for cmd in item.pages[current_page][0]._onEndCommands:
+                    RenderControl.actuallyRunAQueuedCommand(cmd)
+                #item.pages[cpage][0].__del__()
+        elif item.timer > total_time:
+            if not last_forever:
+                return
+        
+        for cmd in item.pages[current_page][0]._onFrameCommands:
+            if item.timer == cmd[1]:
+                RenderControl.actuallyRunAQueuedCommand(cmd[0])
+        
+        draw_item(item.pages[current_page][0], extra)
     elif type(item) == Page:
         for el in item._elements:
             draw_item(el, extra)
@@ -1083,8 +1321,8 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         if type(item) == Marquee:
             item.pos += item.step
-            item.pos %= (item._size[0]+720)
-            draw_quad(item, item.cachedtex, off=(extra["off"][0]+720-item.pos, extra["off"][0]), premult=True) #i'll hardcode this until weatherscan forces me to not
+            item.pos %= (item._size[0]+(720 if not item.bounds else item.bounds[0]))
+            draw_quad(item, item.cachedtex, off=(extra["off"][0]+(720 if not item.bounds else item.bounds[0])-item.pos, extra["off"][0]), premult=True) #i'll hardcode this until weatherscan forces me to not
         else:
             draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
             if DEBUG:
@@ -1109,19 +1347,16 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
+    elif isinstance(item, RichText):
+        for i in item.items:
+            draw_item(i, {"off": item._position})
     elif type(item) in (CompositeRenderable, ScrollingCompositeRenderable, RichText, CompositedImage):
         drawlevel += 1
         #print(drawlevel)
-        if type(item) == ScrollingCompositeRenderable:
-            if not item.rtex:
-                item.rtex = rg.rl.load_render_texture(720, 480)
-            if not item.ftex:
-                item.ftex = rg.rl.load_render_texture(*item.bbox)
-        else:
-            if not item.rtex:
-                item.rtex = rg.rl.load_render_texture(720, 480)
-            if not item.ftex:
-                item.ftex = rg.rl.load_render_texture(720, 480)
+        if not item.rtex:
+            item.rtex = rg.rl.load_render_texture(720, 480)
+        if not item.ftex:
+            item.ftex = rg.rl.load_render_texture(720, 480)
         rl.end_mode_3d()
         mode_3d_tracker -= 1
         rl.begin_texture_mode(item.rtex)
@@ -1138,21 +1373,15 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         
         if isinstance(item, ScrollingCompositeRenderable):
             item.scroll -= item.step
-            camera2 = rl.Camera3D(
-                rl.Vector3(xx2, yy2+item.bbox[1]/480*yyy*2, 0),
-                rl.Vector3(xx2, yy2+item.bbox[1]/480*yyy*2, -10),
-                rl.Vector3(0, 1, 0),
-                fov,
-                rl.CameraProjection.CAMERA_PERSPECTIVE
-            )
-        else:
-            camera2 = rl.Camera3D(
-                rl.Vector3(xx2, yy2, 0),
-                rl.Vector3(xx2, yy2, -10),
-                rl.Vector3(0, 1, 0),
-                fov,
-                rl.CameraProjection.CAMERA_PERSPECTIVE
-            )
+            
+        
+        camera2 = rl.Camera3D(
+            rl.Vector3(xx2, yy2, 0),
+            rl.Vector3(xx2, yy2, -10),
+            rl.Vector3(0, 1, 0),
+            fov,
+            rl.CameraProjection.CAMERA_PERSPECTIVE
+        )
         # if isinstance(item, RichText):
         #     rl.begin_mode_3d(camera)
         # else:
@@ -1170,7 +1399,7 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 camoff = (720+xx+item.scroll, 0)
                 if isinstance(ch, Text):
                     xx += item.size()[0]
-            if isinstance(ch, CompositeRenderable):
+            if isinstance(ch, CompositeRenderable) and not (type(ch) is RichText):
                 draw_item(ch, extra={"tex": item.rtex, "cam": camera2, "off": camoff})
                 rl.begin_texture_mode(item.rtex)
                 rl.rl_set_clip_planes(0.01, 10000)
@@ -1182,10 +1411,6 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 mode_3d_tracker += 1
                 rl.rl_disable_depth_test()
                 rl.rl_disable_depth_mask()
-            elif isinstance(ch, Polygon):
-                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
-                draw_item(ch, {"off": camoff})
-                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
             else:
                 draw_item(ch, {"off": camoff})
         
@@ -1218,10 +1443,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             #     xxr, yyr = item._position
             #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
             # el
-            if type(item) == ScrollingCompositeRenderable:
-                draw_quad(DummyQuad(*item._position, *item.bbox, effects=item.effects), item.ftex.texture, se=True)
-            else:
-                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True)
+            rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+            draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True, premult=True)
+            rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
         else:
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
             rl.begin_texture_mode(extra["tex"])
@@ -1231,24 +1455,17 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             rl.rl_disable_depth_test()
             rl.rl_disable_depth_mask()
             drawlevel += 1
-            #draw_quad_nocal(DummyQuad(0, 0, 720, 480), item.ftex.texture, transfo, fader)
-            # if type(item) == RichText:
-            #     xxr, yyr = item._position
-            #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
-            # el
-            if type(item) == ScrollingCompositeRenderable:
-                draw_quad(DummyQuad(*item._position, *item.bbox, effects=item.effects), item.ftex.texture, se=True)
-            else:
-                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True)
+            draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True, premult=True)
             drawlevel -= 1
             rl.end_mode_3d()
             mode_3d_tracker -= 1
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
         if DEBUG:
             rl.draw_rectangle_lines(0, 0, 720, 480, rl.BLUE)
-        if item.debug:
-            tex = rl.load_image_from_texture(item.rtex.texture)
-            rl.export_image(tex, "image2.png")
+        if item.debug or (DEBUG and type(item) is RichText):
+            tex = rl.load_image_from_texture(item.ftex.texture)
+            rl.export_image(tex, f"image{ft}.png")
+            ft += 1
     elif isinstance(item, Image):
         if type(item) is not CompositedImage:
             if not item.texture:
@@ -1259,7 +1476,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
                 draw_quad(item, item.texture, off=extra["off"], premult=True)
                 rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) is Polygon:
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         draw_poly(item)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif isinstance(item, AudioSequencer):
         update_audioseq(item)
     elif type(item) in (AudioClip, MP3_AudioClip):
@@ -1307,7 +1526,42 @@ MUTE = False
 if sdi:
     sdih = tscard.Handler(tscard.SDI_URL)
 
+if twc.personality == "WxScan":
+    import wxscanpy.plugin.playman.playCmd.rsload as pmrs
+    def wxsloadthread():
+        #sendSignal('playman', 'playCmd.backgroundMusic.load', ""),
+        pmrs.load('/usr/twc/wxscan/products/misc','setupLayers')
+    th.Thread(target=wxsloadthread).start()
+    import wxsclock
+    th.Thread(target=wxsclock.main).start()
+
+# bloc = rl.get_shader_location(lclipshader, "box")
+# rl.set_shader_value(lclipshader, bloc, rl.Vector4(20, 20, 680, 440), rl.ShaderUniformDataType.SHADER_UNIFORM_VEC4)
+
+#rl.set_target_fps(30)
+fclock = rg.pg.Clock()
+
+def musicplayer():
+    global lms
+    import random
+    while True:
+        print("Music looped!")
+        files = [f for f in os.listdir("bgm") if os.path.isfile(os.path.join("bgm", f)) and not f.startswith(".")]
+        random.shuffle(files)
+        for file in files:
+            rg.pg.mixer.music.load(os.path.join("bgm", file))
+            rg.pg.mixer.music.play()
+            while rg.pg.mixer.music.get_busy():
+                time.sleep(0.1)
+
+if music_player:
+    th.Thread(target=musicplayer).start()
+
+
 while not rl.window_should_close():
+    ft = 0
+    pmbl.idle()
+    fclock.tick_busy_loop(30)
     iiix = 0
     if sdi:
         if not vidtex and sdih.size != (0, 0):
@@ -1320,14 +1574,16 @@ while not rl.window_should_close():
     audio_mixes = []
     audio_vols = []
     remove = []
+    
+    
     for i, cmdlist in enumerate(rg.queuedcommands):
         cmd, tm, fo, estimated = cmdlist
-        if time.time() > tm:
-            print("runcmd ", cmd)
-            if type(cmd) in [SetNamedLayerViewPortCmd, ModifyNamedLayerCmd]:
-                print(cmd.__dict__)
+        #if time.time() > (tm+fo/30):
+        if int(time.time()) + RenderControl.rctf/30 > tm+fo/30:
+            print("runcmd", tm, fo, estimated, type(cmd).__name__)
             RenderControl.actuallyRunAQueuedCommand(cmd)
             remove.append(cmdlist)
+    RenderControl.rctf += 1
     for i in remove:
         rg.queuedcommands.remove(i)
     sortedLayers = sorted(rg.layers, key=lambda layer: layer[4])
@@ -1343,11 +1599,18 @@ while not rl.window_should_close():
     audio_depths = []
     audnames = []
     
+    rt = time.perf_counter
     
     for l in sortedLayers:
         lastaud = 0
         if l[-1]:
             activedrawlayer = l
+            
+            #rl.set_shader_value(lclipshader, bloc, rl.Vector4(l[6], l[7], l[8], l[9]), rl.ShaderUniformDataType.SHADER_UNIFORM_VEC4)
+            rl.set_shader_value(lclipshader, bloc, rl.ffi.new('float *', float(l[6]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc2, rl.ffi.new('float *', float(l[7]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc3, rl.ffi.new('float *', float(l[8]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc4, rl.ffi.new('float *', float(l[9]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
             draw_item(l[1])
         for _ in range(len(audio_chans)-lastaud):
             audio_depths.append(l[4])
@@ -1378,22 +1641,31 @@ while not rl.window_should_close():
             if snd:
                 snd.set_volume(vol if not MUTE else 0)
             i += 1
-        print(video_audio_level)
+        #print(video_audio_level)
         
     if sdi:
         sdih.set_volume(video_audio_level)
         #print("set volume", vol)
+    if music_player:
+        rg.pg.mixer.music.set_volume(video_audio_level)
     
     rl.end_mode_3d()
     mode_3d_tracker -= 1
     if DEBUG:
-        layer_list = "\n".join(["Layer Order:"] + [f"{l[0]} (depth {l[4]})" for l in sortedLayers])
+        def getnpages(layer):
+            if not isinstance(layer[1], Layer):
+                return 0
+            if not isinstance(layer[1].pages, list):
+                return 0
+            return len(layer[1].pages)
+        layer_list = "\n".join(["Layer Order:"] + [f"{l[0]} (depth {l[4]}) (transforms: x y {l[6]} {l[7]} w h {l[8]} {l[9]} sx sy {l[10]} {l[11]} tx ty {l[12]} {l[13]}) (Loops: {l[5]}) (Pages: {getnpages(l)})" for l in sortedLayers])
+        #layer_list = "\n".join(["QC Info:"] + [f"{type(cmd).__name__} {tm} {fo} {round(time.time()+RenderControl.rctf/30-tm-fo/30)}" for cmd, tm, fo, whatevss in rg.queuedcommands])
         lines = windbg.split("\n")
         if len(lines) > 12:
             lines = lines[-12:]
         rl.draw_fps(10, 10)
-        rl.draw_text(f"StarID: {starid}", 10, 40, 20, rl.WHITE)
-        rl.draw_text(f"Audio Playing: {len(audio_chans)}", 10, 70, 20, rl.WHITE)
+        rl.draw_text(f"StarID: {starid} Personality {twc.personality}", 10, 40, 20, rl.WHITE)
+        rl.draw_text(f"Audio Playing: {len(audio_chans)} RCT {RenderControl.rctf} QC {len(rg.queuedcommands)}", 10, 70, 20, rl.WHITE)
         vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
         rl.draw_text(layer_list, 10, 100, 10, rl.WHITE)
     for i in range(len(last_sec)):
@@ -1411,6 +1683,9 @@ while not rl.window_should_close():
     
     if rl.is_key_pressed(rl.KeyboardKey.KEY_D):
         DEBUG = not DEBUG
+    
+    if rl.is_key_pressed(rl.KeyboardKey.KEY_R):
+        skip_drawing = not skip_drawing
     
     if rl.is_key_pressed(rl.KeyboardKey.KEY_M):
         MUTE = not MUTE

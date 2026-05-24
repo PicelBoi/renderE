@@ -35,7 +35,7 @@ def init(config):
 
 def idle():
     global _idleCnt
-    if _idleCnt == 10:
+    if _idleCnt >= 10:
         _idleCnt = 0
         now = time.time()
         changed = 0

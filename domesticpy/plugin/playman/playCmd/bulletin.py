@@ -322,7 +322,10 @@ def _setMode(rotation):
 
 def _updatePresentation(lastRotation, rotation):
     immediate = 1
-    _params.immediateReplacement = immediate
+    try:
+        _params.immediateReplacement = immediate
+    except NameError:
+        return
     now = time.time()
     _params.bulletins = []
     i = 1

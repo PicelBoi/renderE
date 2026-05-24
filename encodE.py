@@ -15,15 +15,26 @@ only = ""
 parser = argparse.ArgumentParser(description="i1 encoder")
 parser.add_argument("item", nargs="?", default="", help="The item to encode data for. Leave blank to encode all data except tag data.")
 parser.add_argument("-ns", "--nosensor", action="store_true", help="Excludes sensor data for CC.")
+parser.add_argument("-wxs", "--weatherscan", action="store_true", help="Enables Weatherscan mode.")
 
 args = parser.parse_args()
 
 nosensor = args.nosensor
+wxs = args.weatherscan
 
 doonly = bool(args.item)
 only = args.item
 
-print("encodE by LeWolfYT")
+legally_distinct_splash ="""                                              $$\\ $$$$$$$$\\ 
+                                              $$ |$$  _____|
+ $$$$$$\\  $$$$$$$\\   $$$$$$$\\  $$$$$$\\   $$$$$$$ |$$ |      
+$$  __$$\\ $$  __$$\\ $$  _____|$$  __$$\\ $$  __$$ |$$$$$\\    
+$$$$$$$$ |$$ |  $$ |$$ /      $$ /  $$ |$$ /  $$ |$$  __|   
+$$   ____|$$ |  $$ |$$ |      $$ |  $$ |$$ |  $$ |$$ |      
+\\$$$$$$$\\ $$ |  $$ |\\$$$$$$$\\ \\$$$$$$  |\\$$$$$$$ |$$$$$$$$\\ 
+ \\_______|\\__|  \\__| \\_______| \\______/  \\_______|\\________|"""
+print(legally_distinct_splash)
+print("by LeWolfYT")
 print("LFRecord.db is from MARIENCODER!")
 print("Make sure to support it too!")
 
@@ -48,33 +59,36 @@ coopid = set(dsm.rget(f"Config.{cver}.interestlist.coopId"))
 counties = dsm.rget(f"Config.{cver}.interestlist.county")
 aqis = dsm.rget(f"Config.{cver}.interestlist.aq")
 primarycoop = dsm.rget(f"primaryCoopId")
-textfcstcoop = dsm.rget(f"Config.{cver}.Local_TextForecast").coopId
-daypartcoop = dsm.rget(f"Config.{cver}.Local_DaypartForecast").coopId[0]
-sevendaycoop = dsm.rget(f"Config.{cver}.Local_7DayForecast").coopId
-headlinecounty = dsm.rget(f"Config.{cver}.Local_NWSHeadlines").zone
-getawaycoop = dsm.rget(f"Config.{cver}.Local_GetawayForecast").coopId
-uvcoop = dsm.rget(f"Config.{cver}.Ldl_UVForecast").coopId
 
-trafficrep = dsm.rget(f"Config.{cver}.Local_TrafficReport")
+if not wxs:
+    textfcstcoop = dsm.rget(f"Config.{cver}.Local_TextForecast").coopId
+    daypartcoop = dsm.rget(f"Config.{cver}.Local_DaypartForecast").coopId[0]
+    sevendaycoop = dsm.rget(f"Config.{cver}.Local_7DayForecast").coopId
+    headlinecounty = dsm.rget(f"Config.{cver}.Local_NWSHeadlines").zone
+    getawaycoop = dsm.rget(f"Config.{cver}.Local_GetawayForecast").coopId
+    uvcoop = dsm.rget(f"Config.{cver}.Ldl_UVForecast").coopId
+    trafficrep = dsm.rget(f"Config.{cver}.Local_TrafficReport")
 
-metrofcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_MetroForecastMap").fcstValue[0][1]]
-regfcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_RegionalForecastMap").fcstValue[0][1]]
+    metrofcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_MetroForecastMap").fcstValue[0][1]]
+    regfcstcoop = [v[0] for v in dsm.rget(f"Config.{cver}.Local_RegionalForecastMap").fcstValue[0][1]]
 
-coopid.add(textfcstcoop)
-coopid.add(daypartcoop)
-coopid.add(sevendaycoop)
-coopid.add(primarycoop)
+    coopid.add(textfcstcoop)
+    coopid.add(daypartcoop)
+    coopid.add(sevendaycoop)
+    coopid.add(primarycoop)
 
-coopid.update(getawaycoop)
+    coopid.update(getawaycoop)
 
-hourlycoop = set()
-hourlycoop.add(daypartcoop)
-hourlycoop.update(metrofcstcoop)
-hourlycoop.update(regfcstcoop)
+    hourlycoop = set()
+    hourlycoop.add(daypartcoop)
+    hourlycoop.update(metrofcstcoop)
+    hourlycoop.update(regfcstcoop)
 
-coopid = list(coopid)
+    coopid = list(coopid)
 
-print("Headline county ", headlinecounty)
+    print("Headline county ", headlinecounty)
+else:
+    hourlycoop = coopid
 
 cur = db.cursor()
 
@@ -126,6 +140,7 @@ if (not doonly or only == "sensor") and not nosensor:
         data.windChill = dat["current"]["conditions"]["windChill"]
         data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
         data.pressureTendency = dat["current"]["conditions"]["pressureTendency"]
+        data.ceiling = dat["current"]["conditions"]["cloudCeiling"]
         #wxdata.setData(f"obs", stat, data, dat["current"]["info"]["expires"])
         #dat["current"]["info"]["expires"]
         dsm.rset(f"obs.SENSOR", data, expiretime)
@@ -155,6 +170,7 @@ if not doonly or only == "obs":
             data.windChill = dat["current"]["conditions"]["windChill"]
             data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
             data.pressureTendency = dat["current"]["conditions"]["pressureTendency"]
+            data.ceiling = dat["current"]["conditions"]["cloudCeiling"]
             #wxdata.setData(f"obs", stat, data, dat["current"]["info"]["expires"])
             #dat["current"]["info"]["expires"]
             dsm.rset(f"obs.{stat}", data, expiretime)
@@ -202,11 +218,11 @@ def fixac(ac):
     codes = ac.split(":")
     return ":".join([c for c in codes if not c.startswith("DA")])
 if not doonly or only == "text":
-    def gettext():
+    def gettext(override=None):
         print(times)
         print("starting textfcst!")
         try:
-            textfcst = r.get(f"https://api.weather.com/v1/geocode/{'/'.join(cidmap[textfcstcoop])}/forecast/daily/10day.json?language=en-US&units=e&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["forecasts"]
+            textfcst = r.get(f"https://api.weather.com/v1/geocode/{'/'.join(cidmap[override if override else textfcstcoop])}/forecast/daily/10day.json?language=en-US&units=e&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["forecasts"]
 
             done = 0
             ix = 0
@@ -245,11 +261,16 @@ if not doonly or only == "text":
                         break
                     ix += 1
             for fcst, tm, ex in zip(fcsts, times, expiry):
-                dsm.rset(f"textFcst.{textfcstcoop}.{round(tm)}", fcst, expiretime)
+                dsm.rset(f"textFcst.{override if override else textfcstcoop}.{round(tm)}", fcst, expiretime)
         except:
             traceback.print_exc()
             print("TextForecast generation failed!")
-    threads.append(th.Thread(target=gettext))
+    if not wxs:
+        threads.append(th.Thread(target=gettext))
+    else:
+        #i wish there was a better way to do this
+        for cid in coopid:
+            threads.append(th.Thread(target=gettext, args=(cid,)))
 
 if not doonly or only == "hourly":
     print(f"starting local hourly!")
@@ -279,7 +300,7 @@ if not doonly or only == "fcst":
     def getfcst(ci):
         try:
             print(f"starting forecast data for {ci}!")
-            print(cidmap[sevendaycoop])
+            print(cidmap[ci])
             dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[ci])}&extendeddays=10").json()
             
             for i in range(8):
@@ -307,15 +328,18 @@ if not doonly or only == "fcst":
         except:
             print(traceback.print_exc())
             print(f"fcst failure for {ci}")
-    cidlist = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
+    if not wxs:
+        cidlist = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
+    else:
+        cidlist = coopid
     for cl in cidlist:
         threads.append(th.Thread(target=getfcst, args=(cl,)))
 
 if (not doonly or only == "uvf") or only == "tag":
-    def getuvf():
+    def getuvf(override=None):
         try:
-            print(f"starting uv forecast data for {uvcoop}!")
-            dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[uvcoop])}&extendeddays=10").json()
+            print(f"starting uv forecast data for {override if  override else uvcoop}!")
+            dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[override if  override else uvcoop])}&extendeddays=10").json()
             
             #ldl uv forecast
             # create fcst times
@@ -330,11 +354,16 @@ if (not doonly or only == "uvf") or only == "tag":
             else:
                 start = tomStart
             # set data
-            dsm.rset('uvDailyFcst.%s.%d' % (uvcoop, start), twccommon.Data(index=dat["extended"]["daypart"][0]["uvIndex"]), expiretime)
+            dsm.rset('uvDailyFcst.%s.%d' % (override if  override else uvcoop, start), twccommon.Data(index=dat["extended"]["daypart"][0]["uvIndex"]), expiretime)
         except:
             print(traceback.print_exc())
             print(f"uvf failure for {uvcoop}")
-    threads.append(th.Thread(target=getuvf))
+    if not wxs:
+        threads.append(th.Thread(target=getuvf))
+    else:
+        #i wish there was a better way to do this
+        for cid in coopid:
+            threads.append(th.Thread(target=getuvf, args=(cid,)))
 
 if only == "tag":
     def gettag():
@@ -636,6 +665,10 @@ codes = {
     "Volcano Warning": "VOW003"
 }
 
+import socket
+import nethandler as nh
+import json
+
 if (not doonly or only == "bulletin") and only != "clearbulletin":
     def getbull():
         print("starting bulletins")
@@ -673,7 +706,11 @@ if (not doonly or only == "bulletin") and only != "clearbulletin":
                 
                 print(f"{c} headlines done!")
                 for g in list(headline_groups.keys()):
-                    dsm.rset("bulletin.%s.%d" % (c, int(g)), headline_groups[g], expiretime)
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.connect(("localhost", 7245))
+                    nh._socksend(sock, ("setbulletin "+c+" "+json.dumps(headline_groups[g].__dict__)).encode())
+                    sock.close()
+                    #dsm.rset("bulletin.%s.%d" % (c, int(g)), headline_groups[g], expiretime)
             except:
                 traceback.print_exc()
                 print(f"error on {c}!")
@@ -687,7 +724,7 @@ if only == "clearbulletin":
 
 from datetime import datetime
 
-if not doonly or only == "traffic" and tomtom_key:
+if (not doonly or only == "traffic") and tomtom_key and not wxs:
     def gettraffic():
         print("starting traffic")
         incidents = {}
