@@ -1288,7 +1288,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.idx %= item.framect
         if item.textures[item.idx] is None:
             item.textures[item.idx] = rl.load_texture_from_image(item._ims[item.idx])
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
         draw_quad(item, item.textures[item.idx], off=extra["off"])
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) is Box:
         #the og quad
         draw_quad(item, off=extra["off"])
