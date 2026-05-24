@@ -320,13 +320,11 @@ def _findFile(prodType, fname):
         nt = nethandler.requestNetAssetExt(fullname, check=True)
         if nt:
             return (nt, paths2)
-        paths2 = paths2[1:]
-    while len(paths3) > 0:
-        fullname = paths3[0] + '/%s' % fname
+        fullname = paths2[0] + '/%s' % fname
         nt = nethandler.requestNetAssetExt(fullname)
         if nt:
             return (nt, paths3)
-        paths3 = paths3[1:]
+        paths2 = paths2[1:]
 
     raise Exception("couldn't locate file %s in %s" % (fname, pathsSearched))
     return
