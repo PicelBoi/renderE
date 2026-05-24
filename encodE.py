@@ -302,6 +302,10 @@ if not doonly or only == "fcst":
             print(f"starting forecast data for {ci}!")
             print(cidmap[ci])
             dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[ci])}&extendeddays=10").json()
+            try:
+                golfdat = r.get(f"https://api.weather.com/v2/indices/golf/daypart/15day?geocode={','.join(cidmap[ci])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["golfIndex12hour"]
+            except:
+                golfdat = None
             
             for i in range(8):
                 j = i + (dat["extended"]["daily"][0]["partiallyObserved"])
@@ -322,7 +326,18 @@ if not doonly or only == "fcst":
                 data.dayWindSpeed = daypartdat["windSpeed"]
                 data.dayWindDir = windmap[daypartdat["windCardinal"]]
                 data.dayChanceOfPrecip = 0 #figure this out later
-                data.golfIndex = 3
+                if golfdat:
+                    matched = False
+                    matchidx = 0
+                    for i, val in enumerate(golfdat["fcstValid"]):
+                        if val == dailydat["valid"]:
+                            matched = True
+                            matchidx = int(i)
+                    if not matched:
+                        print(f"no golf data match for location {ci}")
+                    
+                    data.golfIndex = golfdat["golfIndex"][matchidx]
+                #data.golfIndex = 3
                 #dailydat["expires"]
                 dsm.rset(f"dailyFcst.{ci}.{int(ktime)}", data, expiretime)
         except:
