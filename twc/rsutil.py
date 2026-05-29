@@ -273,8 +273,11 @@ def isDST(t=time.time()):
         return 0
     return
 
+forceVocalOff = False
 
 def playVocal(utcTimeStamp, offTimes):
+    if forceVocalOff:
+        return False
     if isDST(utcTimeStamp):
         tzOffset = 4
     else:

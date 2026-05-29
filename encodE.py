@@ -85,6 +85,7 @@ if not wxs:
     hourlycoop.update(regfcstcoop)
 
     coopid = list(coopid)
+    afcoop = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
 
     print("Headline county ", headlinecounty)
 else:
@@ -97,7 +98,7 @@ windmap = {"Calm": 0, "N": 1, "NNE": 2, "NE": 3, "ENE": 4, "E": 5, "ESE": 6, "SE
 cidmap = {}
 teccimap = {}
 
-for cid in coopid:
+for cid in (coopid if wxs else (coopid+afcoop)):
     #print(f"Searching for coopId {cid}")
     c2 = cur.execute("SELECT * FROM LFRecord WHERE coopId = ?", (cid,))
     res = c2.fetchone()
@@ -307,7 +308,7 @@ if not doonly or only == "fcst":
             except:
                 golfdat = None
             
-            for i in range(8):
+            for i in range(9):
                 j = i + (dat["extended"]["daily"][0]["partiallyObserved"])
                 jj = (i*2+1) if dat["extended"]["daily"][0]["partiallyObserved"] else (i*2)
                 dailydat = dat["extended"]["daily"][j]
@@ -344,7 +345,7 @@ if not doonly or only == "fcst":
             print(traceback.print_exc())
             print(f"fcst failure for {ci}")
     if not wxs:
-        cidlist = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
+        cidlist = afcoop
     else:
         cidlist = coopid
     for cl in cidlist:
@@ -804,7 +805,7 @@ if (not doonly or only == "traffic") and tomtom_key and not wxs:
                 descEstDuration=None,
                 descDetour=None,
                 descAltRoute=None,
-                loc=f"{f} to {t}",
+                loc=((f"{f} to {t}") if f != t else f),
                 dir=" "
             )
             ii += 1

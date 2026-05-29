@@ -14,7 +14,10 @@ def newjoin(*args):
     #     print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
     #     print(pp, jp)
     #     exit()
-    return pp.replace("\\", "/")
+    pp = pp.replace("\\", "/")
+    if pp.startswith("/media/backgrounds/"):
+        pp = pp.replace("/media/backgrounds/", "net/media/backgrounds/", 1)
+    return pp
 
 pg.font.init()
 pg.mixer.init(frequency=48000, size=-16, channels=2)

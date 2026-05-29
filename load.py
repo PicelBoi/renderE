@@ -40,9 +40,10 @@ def main():
     logoId = None
     mediaNum = None
     flavor = None
+    tagInstanceId = '0'
     duration = 0
     durationFrames = 0
-    (opts, args_proper) = getopt.getopt(sys.argv[1:], '', [6, 7, 8, 9, 10])
+    (opts, args_proper) = getopt.getopt(sys.argv[1:], '', ['id=', 'expire=', 'vbid=', 'logoId=', 'duration=', 'tagInstanceId='])
     for (opt, val) in opts:
         if opt == '--id':
             id = int(val)
@@ -54,6 +55,8 @@ def main():
             logoId = val
         if opt == '--duration':
             duration = int(val)
+        if opt == '--tagInstanceId':
+            tagInstanceId = val
     
     print(args_proper)
     prodType = args_proper[0]
@@ -73,7 +76,7 @@ def main():
         if duration > 0:
             d.duration = duration
         else:
-            flavorMap = {'D': 60, 'E': 60, 'F': 58, 'S': 57, 'K': 90, 'O': 90, 'P': 90, 'N': 120, 'L': 120, 'M': 120, "T": 140}
+            flavorMap = {'D': 65, 'E': 60, 'F': 58, 'S': 57, 'K': 90, 'O': 90, 'P': 90, 'N': 120, 'L': 120, 'M': 120, "T": 140, 'U': 65, 'U1': 65, 'U2': 65, 'U3': 65, 'U4': 65, 'U5': 65, 'V': 65, 'V1': 65, 'V2': 65, 'V3': 65, 'V4': 65, 'V5': 65, 'W': 65, 'W1': 65, 'W2': 65, 'W3': 65, 'W4': 65, 'W5': 65, 'X': 95, 'Y': 95, 'Z': 90}
             d.duration = flavorMap[flavor]
     if prodType == 'tag':
         if len(args_proper) > 1:
@@ -84,6 +87,8 @@ def main():
                     durationFrames = int(args_proper[3])
         d.mediaNum = mediaNum
         d.duration = duration
+        d.flavor = None
+        d.tagInstanceId = tagInstanceId
         d.durationFrames = durationFrames
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("localhost", 7245))

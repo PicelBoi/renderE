@@ -16,7 +16,7 @@ class Observation(twc.products.Product):
             return None
             
         obx = twccommon.DefaultedData(obs)    
-        if twc.personality == "FlatRock":
+        if twc.personalityCode > 2:
             skyCond = wxDataUtil.formatSkyCondition(
                 obx.skyCondition, 'Observation')
             obx.skyIcon = twc.findRsrc(

@@ -1,12 +1,10 @@
 # uncompyle6 version 3.9.3
 # Python bytecode version base 2.2 (60717)
 # Decompiled from: Python 3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]
-# Embedded file name: Fallback120.py
-# Compiled at: 2007-01-12 11:33:37
+# Embedded file name: Fallback65.py
+# Compiled at: 2015-09-21 16:18:17
 from functools import reduce
-import twc
-if twc.personalityCode < 4:
-    s = {'Local': [('CurrentConditions', [10 * 30]), ('LocalObservations', [14 * 30]), ('RegionalDopplerRadar', [12 * 30]), ('Almanac', [10 * 30]), ('DaypartForecast', [12 * 30]), ('RegionalForecastMap', [10 * 30]), ('TextForecast', [36 * 30]), ('7DayForecast', [16 * 30])], 'BackgroundMusic': [('Default', [120 * 30])], 'Tag': [('Null', [50 * 30]), ('Default', [70 * 30])]}
+s = {'Local': [('IntroFS', [2 * 30]), ('WelcomeFS', [3 * 30]), ('NowFS', [12 * 30]), ('RegionalRadarFS', [12 * 30]), ('HourlyForecastFS', [12 * 30]), ('7DayForecastFS', [12 * 30]), ('SummaryFS', [12 * 30])], 'AdCrawl': [('Void', [25 * 30]), ('Default', [40 * 30])]}
 
 def getSchedule(duration):
     return _adjustScheduleLength(s, duration)

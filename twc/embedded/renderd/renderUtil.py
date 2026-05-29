@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.2 (main, Feb  4 2025, 14:51:09) [Clang 16.0.0 (clang-1600.0.26.6)]
 # Embedded file name: renderUtil.py
 # Compiled at: 2007-01-12 11:17:28
-import glob, os, os.path, string, time
+import glob, os, os.path, string, time, twc
 from . import RenderControl, RenderScript
 
 def rgbaConvert(r, g, b, a=255.0):
@@ -353,7 +353,7 @@ def shiftGradient(grad, hue, sat, val):
         new.append((r*255, g*255, b*255, a))
     return new
 
-modern = False
+modern = (twc.personality == "Texarkana")
 def getBevelBox(w, h, color=None, debug=False, shift=bevelshift):
     bevelWidth = 3
     if color is None or len(color) != 5:
@@ -541,12 +541,14 @@ def fadeInOut(p, gr, totalDuration, fadeInDuration=5, fadeOutDuration=5):
     p.addItem(fade)
     return
 
-def slideInOut(p, gr, totalDuration, fadeInDuration=5, fadeOutDuration=5, moveDistance=720):
+def slideInOut(p, gr, totalDuration, fadeInDuration=5, fadeOutDuration=5, moveDistance=720, delay=0):
     fade = RenderScript.EffectSequencer(gr)
+    if delay:
+        fade.addEffect(RenderScript.NullEffect(None), delay)
     if fadeInDuration:
         fade.addEffect(RenderScript.Slider(None, moveDistance/fadeInDuration, 0), fadeInDuration)
     if totalDuration > fadeInDuration + fadeOutDuration:
-        fade.addEffect(RenderScript.NullEffect(None), totalDuration - fadeInDuration - fadeOutDuration)
+        fade.addEffect(RenderScript.NullEffect(None), totalDuration - fadeInDuration - fadeOutDuration - delay)
     if fadeOutDuration:
         fade.addEffect(RenderScript.Slider(None, -moveDistance/fadeOutDuration, 0), fadeOutDuration)
     #print(fade.effects)

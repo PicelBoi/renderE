@@ -18,13 +18,17 @@ def init(config):
     else:
         _activate = 0
     _config = twccommon.Data()
-    _config.duration = 5400
-    _config.expiration = 300
-    if twc.personality == "Perris":
+    if twc.personalityCode == 4:
+        _config.duration = 18000
+        _config.expiration = 1200
+    else:
+        _config.duration = 5400
+        _config.expiration = 300
+    if twc.personalityCode < 2:
         _config.playlistId = 'NationalLDL'
         _config.defaultPlaylistName = 'Ldl.nationalDefaultUp'
         _config.downPlaylistName = 'Ldl.nationalDown'
-    elif twc.personality == "FlatRock":
+    else:
         _config.defaultPlaylistName = 'NationalLdl.nationalLdlUp'
         _config.downPlaylistName = 'NationalLdl.nationalDown'
     _config.__dict__.update(config.__dict__)
@@ -44,7 +48,7 @@ def _ldlBulletins():
     return bulletins
     return
 
-if twc.personality == "Perris":
+if twc.personalityCode < 2:
     def _getPlaylistName(ldlWarningMode):
         _dispMode = {'A': (twc.Data(playlistName='Ldl.nationalDefaultUp')), 'B': (twc.Data(playlistName='Ldl.nationalLongformUp'))}
         dispMode = dsm.defaultedGet('displayMode')
@@ -66,7 +70,7 @@ if twc.personality == "Perris":
             _config.duration = 13800
         return playListName
         return
-elif twc.personality == "FlatRock":
+elif twc.personalityCode == 3:
     def _getPlaylistName(displayMode=None):
         global _displayMode
         (y, m, d, H, M, S, dow, jd, dst) = time.localtime()
@@ -98,16 +102,51 @@ elif twc.personality == "FlatRock":
             twccommon.Log.error('Unable choose LDL playlist for day %d time %d:%d' % (dow, H, M))
 
         return None
+else:
+    def _getPlaylistName(displayMode=None):
+        global _displayMode
+        (y, m, d, H, M, S, dow, jd, dst) = time.localtime()
+        now = H * 100 + M
+        if displayMode is None:
+            _displayMode = dsm.defaultedGet('displayMode')
+        else:
+            _displayMode = displayMode
+        liveLDLModes = ['C', 'D', 'E', 'F', 'G', 'H']
+        longLDLModes = ['I']
+        anfLDLModes = ['J']
+        if _displayMode in liveLDLModes or _displayMode in anfLDLModes:
+            playlistSchedule = dsm.defaultedGet('Config.%s.Playlist.NationalLdl.scheduleLive' % dsm.getConfigVersion())
+        elif _displayMode in longLDLModes:
+            playlistSchedule = dsm.defaultedGet('Config.%s.Playlist.NationalLdl.scheduleLong' % dsm.getConfigVersion())
+        else:
+            twccommon.Log.warning('Unknown displayMode=%s' % displayMode)
+            playlistSchedule = None
+        if playlistSchedule == None:
+            twccommon.Log.error('Unable to choose LDL playlist. No LDL Playlists are configured!')
+            return None
+        try:
+            for (st, et, plName) in playlistSchedule[dow]:
+                start = st[0] * 100 + st[1]
+                end = et[0] * 100 + et[1]
+                if start <= now and end >= now:
+                    twccommon.Log.info('LDL playlist Playlist.%s chosen' % plName)
+                    return plName
+
+        except Exception as e:
+            twccommon.Log.error('Unable choose LDL playlist for day %d time %d:%d' % (dow, H, M))
+
+        return None
+        return
 
 import domesticpy.plugin.playman.playCmd.pm as pcpm
-if twc.personality == "Perris":
+if twc.personalityCode < 2:
     def load(playlistId, playlistName, duration, bulletins):
         tmpLdlWarningMode = _getLdlWarningMode(bulletins)
         eventValue = (playlistId, duration, _config.expiration, "[DynamicSchedule('%s')]" % playlistName, twccommon.Data(ldlBulletins=bulletins, ldlWarningMode=tmpLdlWarningMode, nationalLdl=1))
         #twc.MiscCorbaInterface.signalEvent('SystemEventChannel', 'playman.playCmd.pm.load', eventValue)
         pcpm.load(*eventValue)
         return
-elif twc.personality == "FlatRock":
+else:
     def load(playlistId, activate, displayMode):
         global _activate
         global _displayMode
@@ -129,7 +168,7 @@ elif twc.personality == "FlatRock":
         return 1
         return
 
-if twc.personality == "Perris":
+if twc.personalityCode < 2:
     def toggleNationalLDL(id, activate, time=0, frame=0):
         if time is None:
             time = 0
@@ -156,7 +195,7 @@ if twc.personality == "Perris":
         print("i am the national ldl")
         pcpm.run(*eventValue)
         return
-elif twc.personality == "FlatRock":
+else:
     def run(playlistId, time, frame):
         eventValue = ((playlistId, time, frame, twccommon.Data(nationalLdl=1, displayMode=_displayMode)))
         pcpm.run(*eventValue)

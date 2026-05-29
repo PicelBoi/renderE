@@ -257,7 +257,7 @@ def _toString(node):
 import functools, nethandler
 implid = 0
 
-from patches import filterfixer9000
+from patches import filterfixer9000, unprint
 
 def _processImpls(impls):
     global implid
@@ -269,7 +269,7 @@ def _processImpls(impls):
     ns["reduce"] = reduce
     ns["functools"] = functools
     ns["filterfixer9000"] = filterfixer9000
-    code = loadtools.fixsort(py).replace("os.access", "newaccess").replace("os.stat", "newstat").replace("os.path.exists", "newexists").replace("filter", "filterfixer9000").replace("os.path.join", "newjoin").replace("    \t", "        ").replace("\t", "        ")
+    code = loadtools.fixsort(unprint(py)).replace("os.access", "newaccess").replace("os.stat", "newstat").replace("os.path.exists", "newexists").replace("filter", "filterfixer9000").replace("os.path.join", "newjoin").replace("    \t", "        ").replace("\t", "        ")
     implid += 1
     exec(code, ns, ns)
     prodClass = ns['Product']

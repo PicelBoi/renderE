@@ -357,7 +357,7 @@ def loadClock():
 
 
 
-if twc.personality == "Perris":
+if twc.personalityCode < 2:
     def loadData(prodType, argData):
         if prodType == 'tag':
             id = 'tag-%s' % argData.id
@@ -376,7 +376,7 @@ if twc.personality == "Perris":
         else:
             _runPlayCmd(prodType, 'load', argData)
         return
-elif twc.personality == "FlatRock":
+else:
     def loadData(prodType, argData):
         global _ldlIdList
         if prodType == 'tag':
@@ -571,4 +571,5 @@ def _runPlayCmd(prodType, playCmd, *params):
     _signalRPC(fnName, params)
     return
 
-
+def isAFullScreenSuppressedFlavor(flavor):
+    return False

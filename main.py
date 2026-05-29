@@ -76,8 +76,7 @@ screensize = (720, 480)
 zzz = 1
 rl = rg.rl
 
-rl.set_config_flags((rl.ConfigFlags.FLAG_WINDOW_UNDECORATED * args.noframe) | (rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT * args.trans))
-#rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_UNDECORATED)
+rl.set_config_flags((rl.ConfigFlags.FLAG_WINDOW_UNDECORATED * args.noframe) | (rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT * args.trans) | rl.ConfigFlags.FLAG_WINDOW_ALWAYS_RUN)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(("localhost", 7245))
@@ -592,7 +591,7 @@ activedrawlayer = None
 
 drawlevel = 0
 
-setposition_absolute = (twc.personality != "Perris")
+setposition_absolute = (twc.personalityCode > 2)
 
 def calceffects(quad):
     qqx, qqy = quad._position
@@ -721,6 +720,11 @@ uniform float yy2;
 uniform float ww2;
 uniform float hh2;
 
+uniform float ll;
+uniform float rr;
+uniform float tt;
+uniform float bb;
+
 
 out vec4 finalColor;
 
@@ -738,6 +742,12 @@ void main() {
         (pos.x > (xx2 + ww2)) ||
         (pos.y < yy2) ||
         (pos.y > (yy2 + hh2))
+    ) ||
+    (
+        (pos.x < ll) ||
+        (pos.x > rr) ||
+        (pos.y < bb) ||
+        (pos.y > tt)
     )) {
         discard;
         //finalColor = vec4(pos.x/720, pos.y/480, 0, 1);
@@ -773,14 +783,22 @@ bloc6 = rl.get_shader_location(lclipshader, "yy2")
 bloc7 = rl.get_shader_location(lclipshader, "ww2")
 bloc8 = rl.get_shader_location(lclipshader, "hh2")
 
-print("shader", bloc, bloc2, bloc3, bloc4, bloc5, bloc6, bloc7, bloc8)
+blocT = rl.get_shader_location(lclipshader, "tt")
+blocB = rl.get_shader_location(lclipshader, "bb")
+blocL = rl.get_shader_location(lclipshader, "ll")
+blocR = rl.get_shader_location(lclipshader, "rr")
 
 rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(720*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(480*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 
-def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), premult=False):
+rl.set_shader_value(lclipshader, blocL, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, blocB, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(720*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(480*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+
+def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), premult=False, clipoverride=None):
     effects = quad.effects
     #rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_POINT)
     plane.materials[0].maps.texture = tex
@@ -793,6 +811,8 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     clipw = 720
     cliph = 480
     
+    
+    forcebilinear = ((getattr(quad, "optimal_size", quad._size) != quad._size) and isinstance(quad, Icon))
     
     if isinstance(quad, Text) or isinstance(quad, Clock):
         qqy += quad.descent
@@ -810,14 +830,22 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     
     qxbase = qqx + x_offset
     qybase = qqy * 1
-    qqx = round(qqx)+off[0]+x_offset
-    qqy = round(qqy)+off[1]
+    if clipoverride:
+        qxbase = clipoverride[0]
+        qybase = clipoverride[1]
+    qqx = qqx+off[0]+x_offset
+    qqy = qqy+off[1]
     
     if drawlevel == 0:
         qqx = round(qqx * activedrawlayer[10])
         qqy = round(qqy * activedrawlayer[11])
         qxbase = round(qxbase * activedrawlayer[10])
         qybase = round(qybase * activedrawlayer[11])
+    else:
+        qqx = round(qqx)
+        qqy = round(qqy)
+        qxbase = round(qxbase)
+        qybase = round(qybase)
     
     qx, qy = qqx*1, qqy*1
     xw = quad._size[0]/720*(xxx*2)
@@ -829,18 +857,25 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     
     wbase = quad.size()[0]
     hbase = quad.size()[1]
+    if clipoverride:
+        wbase = clipoverride[2]
+        hbase = clipoverride[3]
     
     if drawlevel == 0:
         wbase *= activedrawlayer[10]
         hbase *= activedrawlayer[11]
     
+    absclip_left = 0
+    absclip_right = 720
+    absclip_top = 720
+    absclip_bottom = 0
     
     mat = rl.matrix_rotate_xyz((math.radians(90), 0, math.radians(0)))
     mat = rl.matrix_multiply(mat, rl.matrix_scale(xw, yw, 1))
     fader = 1
     visible = not not quad.visible
     def applyeffect(effect : GraphicEffect):
-        nonlocal mat, xxw, yyw, fader, qx, qy, visible, clipx, clipy, clipw, cliph
+        nonlocal mat, xxw, yyw, fader, qx, qy, visible, clipx, clipy, clipw, cliph, absclip_left, absclip_right, absclip_top, absclip_bottom
         if type(effect) == Rotate:
             if effect.xr:
                 mat = rl.matrix_multiply(mat, rl.matrix_rotate_x(math.radians(effect.angle*effect.frame)))
@@ -891,11 +926,25 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
             if effect.fader is not None:
                 fader = effect.fader
         elif type(effect) == Clipper:
-            clipx = qxbase + (effect.left or 0)
-            clipy = qybase + (effect.bottom or 0)
-            
-            clipw = wbase - (effect.left or 0) + (effect.right or 0)
-            cliph = hbase - (effect.bottom or 0) + (effect.top or 0)
+            if effect.planeclipper:
+                for i, p in enumerate(effect.planes):
+                    plane, pos, step = p
+                    if not se:
+                        effect.planes[i][1] += step
+                    if plane == Clipper.CP_LEFT:
+                        absclip_left = pos
+                    if plane == Clipper.CP_RIGHT:
+                        absclip_right = pos
+                    if plane == Clipper.CP_TOP:
+                        absclip_top = pos
+                    if plane == Clipper.CP_BOTTOM:
+                        absclip_bottom = pos
+            else:
+                clipx = qxbase + (effect.left or 0)
+                clipy = qybase + (effect.bottom or 0)
+                
+                clipw = wbase - (effect.left or 0) + (effect.right or 0)
+                cliph = hbase - (effect.bottom or 0) + (effect.top or 0)
             
         if hasattr(effect, "frame"):
             if not effect.frozen and not se:
@@ -926,6 +975,8 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         c3 /= 255
         c4 /= 255
     pfader = (1 if not premult else fader)
+    if type(quad) == Box:
+        pfader *= quad._color[3]
     try:
         col = rl.Color(min(round(quad._color[0]*255*pfader), 255), min(round(quad._color[1]*255*pfader), 255), min(round(quad._color[2]*255*pfader), 255), min(round(quad._color[3]*fader*255), 255))
     except Exception as e:
@@ -940,12 +991,17 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(clipy*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
     rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(clipw*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
     rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(cliph*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+
+    rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(absclip_top*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocB, rl.ffi.new('float *', float(absclip_bottom*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocL, rl.ffi.new('float *', float(absclip_left*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(absclip_right*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
     
     #print(clipx, clipy, clipw, cliph)
     
     if visible:
         plane.materials[0].shader = lclipshader
-        rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR if (drawlevel == 0 and (activedrawlayer[10] != 1 or activedrawlayer[11] != 1)) else (rl.TextureFilter.TEXTURE_FILTER_POINT if not isinstance(quad, Icon) else rl.TextureFilter.TEXTURE_FILTER_TRILINEAR))
+        rl.set_texture_filter(tex, rl.TextureFilter.TEXTURE_FILTER_BILINEAR if ((drawlevel == 0 and (activedrawlayer[10] != 1 or activedrawlayer[11] != 1))) else (rl.TextureFilter.TEXTURE_FILTER_POINT if not isinstance(quad, Icon) else rl.TextureFilter.TEXTURE_FILTER_TRILINEAR))
         rl.draw_model_ex(plane, rl.Vector3(-xxw, -yyw, -zzz), rl.Vector3(0, 0, 0), 0, rl.Vector3(1, 1, 1), col)
 
 class DummyQuad():
@@ -1201,7 +1257,9 @@ def unload_tree(item):
     if hasattr(item, "elements"):
         for i in item.elements:
             unload_tree(i)
-
+    if hasattr(item, "effects"):
+        for i in item.effects:
+            unload_tree(i)
 
 iiix = 0
 def page_getter(page_times, timer):
@@ -1228,14 +1286,15 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
     if type(item) == Layer:
         #this whole section has been cleaned up because the old one looked like a rat's nest
         item.timer += 1
-        last_forever = False
         if len(item.pages) == 0:
             return
     
+        last_forever = (item.pages[-1][1] == 0)
         page_times = [p[1] for p in item.pages]
         total_time = sum(page_times)
         current_page = page_getter(page_times, item.timer)
         last_frame_page = page_getter(page_times, item.timer-1)
+        next_frame_page = page_getter(page_times, item.timer+1)
     
         # if skip_drawing:
         #     return
@@ -1253,9 +1312,10 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
         
         if item.timer < total_time:
             if item.timer > 0:
-                if last_frame_page != current_page:
+                if next_frame_page != current_page:
                     for cmd in item.pages[current_page][0]._onEndCommands:
                         RenderControl.actuallyRunAQueuedCommand(cmd)
+                if last_frame_page != current_page:
                     if not activedrawlayer[5]:
                         item.pages[last_frame_page][0].__del__()
                     for cmd in item.pages[current_page][0]._onStartCommands:
@@ -1285,15 +1345,32 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.textures = [None for f in item._ims]
         else:
             item.idx += 1
-            item.idx %= item.framect
+            if item.loop:
+                item.idx %= item.framect
+            else:
+                item.idx = min(item.idx, item.framect-1)
         if item.textures[item.idx] is None:
             item.textures[item.idx] = rl.load_texture_from_image(item._ims[item.idx])
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
-        draw_quad(item, item.textures[item.idx], off=extra["off"])
+        draw_quad(item, item.textures[item.idx], off=extra["off"], premult=True)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
+    elif isinstance(item, QTMovie):
+        item.idx += 1
+        if item.loop:
+            item.idx %= len(item.images)
+        else:
+            item.idx = min(item.idx, len(item.images)-1)
+        
+        if item.textures[item.idx] is None:
+            item.textures[item.idx] = rl.load_texture_from_image(item.images[item.idx])
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+        draw_quad(item, item.textures[item.idx], off=extra["off"], premult=True)
         rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) is Box:
         #the og quad
-        draw_quad(item, off=extra["off"])
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+        draw_quad(item, off=extra["off"], premult=True)
+        rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     elif type(item) is Video:
         if vidtex:
             draw_quad(item, vidtex, off=extra["off"])
@@ -1314,9 +1391,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             item.cachedtex = None
             item.lasts = item.s
             item.cimg = None
-            item._textsize = item.fnt.font.size(item.s)
+            item._textsize = item.fnt.font.render(item.s, True, (255, 255, 255)).size
         if item.cachedtex is None:
-            item._textsize = item.fnt.font.size(item.s)
+            item._textsize = item.fnt.font.render(item.s, True, (255, 255, 255)).size
             item.create_cimg()
             item.cachedtex = rl.load_texture_from_image(item.cimg)
         item._size = (item.cimg.width, item.cimg.height)
@@ -1497,7 +1574,9 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             if item.im:
                 if not item.tx:
                     item.tx = rg.rl.load_texture_from_image(item.im)
+                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
                 draw_quad(item, item.tx)
+                rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
     else:
         pass
         #print("drawing unrecognized type: ", type(item))
@@ -1514,7 +1593,6 @@ v.setPosition(0, 0)
 v.setSize(720, 480)
 p.addItem(v)
 vl.addPage(p)
-
 RenderControl.createNamedLayer("Video", 25, 0, 0)
 RenderControl.setLayer("Video", vl)
 RenderControl.activateLayer("Video")
@@ -1542,7 +1620,6 @@ if twc.personality == "WxScan":
 
 #rl.set_target_fps(30)
 fclock = rg.pg.Clock()
-
 def musicplayer():
     global lms
     import random
@@ -1559,7 +1636,7 @@ def musicplayer():
 if music_player:
     th.Thread(target=musicplayer).start()
 
-
+import pygame
 while not rl.window_should_close():
     ft = 0
     pmbl.idle()
@@ -1569,9 +1646,11 @@ while not rl.window_should_close():
         if not vidtex and sdih.size != (0, 0):
             timg = rl.gen_image_color(*sdih.size, rl.BLACK)
             vidtex = rl.load_texture_from_image(timg)
+            print("vidtex")
         
-        if sdih.frame:
-            rl.update_texture(vidtex, rl.ffi.new("char []", sdih.frame))
+        if sdih.frame and vidtex:
+            sdif = rl.ffi.new("char []", sdih.frame)
+            rl.update_texture(vidtex, sdif)
     audio_chans = []
     audio_mixes = []
     audio_vols = []
@@ -1581,11 +1660,11 @@ while not rl.window_should_close():
     for i, cmdlist in enumerate(rg.queuedcommands):
         cmd, tm, fo, estimated = cmdlist
         #if time.time() > (tm+fo/30):
-        if int(time.time()) + RenderControl.rctf/30 > tm+fo/30:
+        if time.time() + RenderControl.rctf/30 >= tm+fo/30:
             print("runcmd", tm, fo, estimated, type(cmd).__name__)
             RenderControl.actuallyRunAQueuedCommand(cmd)
             remove.append(cmdlist)
-    RenderControl.rctf += 1
+    #RenderControl.rctf += 1
     for i in remove:
         rg.queuedcommands.remove(i)
     sortedLayers = sorted(rg.layers, key=lambda layer: layer[4])
@@ -1667,7 +1746,7 @@ while not rl.window_should_close():
             lines = lines[-12:]
         rl.draw_fps(10, 10)
         rl.draw_text(f"StarID: {starid} Personality {twc.personality}", 10, 40, 20, rl.WHITE)
-        rl.draw_text(f"Audio Playing: {len(audio_chans)} RCT {RenderControl.rctf} QC {len(rg.queuedcommands)}", 10, 70, 20, rl.WHITE)
+        rl.draw_text(f"Audio Playing: {len(audio_chans)} QC {len(rg.queuedcommands)}", 10, 70, 20, rl.WHITE)
         vlist = '\n'.join([str(round(vol*100))+'%\n' for vol in audio_finalvols])
         rl.draw_text(layer_list, 10, 100, 10, rl.WHITE)
     for i in range(len(last_sec)):

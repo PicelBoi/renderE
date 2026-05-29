@@ -8,6 +8,13 @@ from pathlib import PurePath
 import builtins
 import types
 
+def newrange(*args):
+    if len(args) == 1:
+        return builtins.range(int(args[0]))
+    if len(args) == 2:
+        return builtins.range(int(args[0]), int(args[1]))
+    if len(args) == 3:
+        return builtins.range(int(args[0]), int(args[1]), int(args[2]))
 string.__dict__["letters"] = string.ascii_letters
 string.__dict__["find"] = (lambda s, f : s.find(f))
 string.__dict__["upper"] = (lambda s : str(s).upper())
@@ -27,6 +34,7 @@ def fixifsub(val):
     return val
 builtins.__dict__["ehuehuehue_i_added_a_function"] = fixifsub #this is the new winner of "most ridiculous python thing i have ever done"
 oldtime = time.struct_time
+builtins.__dict__["xrange"] = range
 
 def untab(stuff):
     return stuff.replace("    \t", "        ").replace("\t", "        ")
@@ -97,14 +105,23 @@ rg.newaccess = newaccess
 rg.newstat = newstat
 rg.newexists = newexists
 
+iid = 0
+
+def revmap(*args):
+    return list(map(*args))
+
 def runrs(filename):
+    global iid
     crs = loadtools.compilers(filename)
     print(type(crs))
-    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "newjoin": rg.newjoin}
+    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "newjoin": rg.newjoin, "range": newrange, "map": revmap}
     try:
         exec(crs.replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), ns, ns)
     except Exception as e:
         tb.print_exc()
+        with open(f"rscrash{iid}.txt", "w") as f:
+            f.write(crs)
+        iid += 1
         raise e
 
 def runrsc(filename):

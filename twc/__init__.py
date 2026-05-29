@@ -10,6 +10,7 @@ Data = twccommon.Data
 DefaultedData = twccommon.DefaultedData
 
 personality = nethandler.personality
+personalityCode = ["Perris", "Texarkana", "WxScan", "FlatRock", "Watt"].index(personality)
 
 def getAttribList(keys, default=None):
     """Get a merged together list of attributes specified
@@ -127,6 +128,8 @@ def presToRenderScript(pres, layerName, **ns):
 
 
 def findRsrc(rsrc, ext, req=1, language=None):
+    if rsrc.startswith("net/backgrounds"):
+        rsrc = rsrc.replace("net/backgrounds", "net/media/backgrounds", 1)
     rsrcRoot = [os.environ["RENDEREMEDIA"], os.environ["RENDERERSRC"], "net/rsrc", "net/media"]
     for path in rsrcRoot:
         searchFile = '%s%s' % (path, rsrc)

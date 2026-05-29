@@ -3,10 +3,11 @@
 # Decompiled from: Python 3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]
 # Embedded file name: local.py
 # Compiled at: 2007-01-12 11:33:37
-import domestic, domestic.wxdata, domestic.BulletinInfo as BulletinInfo, os, copy, time, glob, twc.EventLog as EventLog, twccommon, twccommon.Log as Log, twccommon.PluginManager, twc.dsmarshal as dsm, twc.MiscCorbaInterface
+import domestic, domestic.wxdata, domestic.BulletinInfo as BulletinInfo, os, copy, time, calendar, glob, twc.EventLog as EventLog, twccommon, twccommon.Log as Log, twccommon.PluginManager, twc.dsmarshal as dsm, twc.MiscCorbaInterface
 import domesticpy.plugin.playman.playCmd.pm as pcpm
 import rendereglobals as rg
 import tscard
+from domestic import wxdata
 from functools import cmp_to_key
 CHANNEL_NAME = 'SystemEventChannel'
 TAG_DELAY = 50
@@ -25,94 +26,211 @@ def init(config):
     os.makedirs(_params.tempDir, exist_ok=True)
     return
 
-def load(argData):
-    id = argData.id
-    pres = _params.clone()
-    pres.update(argData)
-    pres.expireTime = time.time() + pres.expire / 30
-    _presentations[id] = pres
-    pres.startTime = time.time()
-    pres.mediaNum = argData.logoId
-    if twc.personality == "FlatRock":
-        pres.duration = argData.duration * 30 + argData.durationFrames
-    pres.channelChangeRequest = 0
-    pres.suppressLocal = 0
-    pres.alternateFeedActive = 0
-    irdChannel = dsm.defaultedConfigGet('irdChannelChangeRequest')
-    if _channelChangeNeeded(irdChannel):
-        pres.channelChangeRequest = 1
-        pres.irdChannel = irdChannel
-        Log.info('AltFeed: IRD channel change requested. Channel will change to %s during this local.' % (irdChannel,))
-    if pres.vbid != '000':
-        pres.alternateFeedActive = 1
-    interestList = dsm.defaultedConfigGet('interestlist.vbid')
-    if interestList == None:
-        interestList = []
-    if pres.vbid in interestList:
-        pres.suppressLocal = 1
-        Log.info('AltFeed: Upcoming local will be suppressed to view an alternate feed. VBID = %s' % (pres.vbid,))
-    if pres.channelChangeRequest == 1 and pres.suppressLocal == 1:
+if twc.personalityCode < 4:
+    def load(argData):
+        id = argData.id
+        pres = _params.clone()
+        pres.update(argData)
+        pres.expireTime = time.time() + pres.expire / 30
+        _presentations[id] = pres
+        pres.startTime = time.time()
+        pres.mediaNum = argData.logoId
+        if twc.personalityCode > 2:
+            pres.duration = argData.duration * 30 + argData.durationFrames
+        pres.channelChangeRequest = 0
         pres.suppressLocal = 0
-        Log.warning('AltFeed: IRD channel change request NOT received in time. Rendering a normal local with channel change.')
-    pres.defaultGroup = _config.defaultPlaylistGroup
-    pres.group = dsm.defaultedConfigGet('PlaylistOverride', pres.defaultGroup)
-    
-    if twc.personality == "Perris":
+        pres.alternateFeedActive = 0
+        irdChannel = dsm.defaultedConfigGet('irdChannelChangeRequest')
+        if _channelChangeNeeded(irdChannel):
+            pres.channelChangeRequest = 1
+            pres.irdChannel = irdChannel
+            Log.info('AltFeed: IRD channel change requested. Channel will change to %s during this local.' % (irdChannel,))
+        if pres.vbid != '000':
+            pres.alternateFeedActive = 1
+        interestList = dsm.defaultedConfigGet('interestlist.vbid')
+        if interestList == None:
+            interestList = []
+        if pres.vbid in interestList:
+            pres.suppressLocal = 1
+            Log.info('AltFeed: Upcoming local will be suppressed to view an alternate feed. VBID = %s' % (pres.vbid,))
+        if pres.channelChangeRequest == 1 and pres.suppressLocal == 1:
+            pres.suppressLocal = 0
+            Log.warning('AltFeed: IRD channel change request NOT received in time. Rendering a normal local with channel change.')
+        pres.defaultGroup = _config.defaultPlaylistGroup
+        pres.group = dsm.defaultedConfigGet('PlaylistOverride', pres.defaultGroup)
+        
+        if twc.personalityCode < 2:
+            try:
+                (pres.duration, pres.version, pres.squeezeBack) = _flavorMap[pres.flavor]
+                pres.override = 0
+            except Exception:
+                pres.override = 1
+                pres.duration = argData.duration
+                pres.version = 0
+                pres.squeezeBack = 0
+        else:
+            try:
+                flavorMap = dsm.defaultedConfigGet('FlavorMap')
+                for (key, value) in flavorMap:
+                    if pres.flavor == key:
+                        (pres.version, pres.squeezeBack) = value
+                        break
+
+                pres.override = 0
+            except Exception:
+                pres.override = 1
+                pres.duration = argData.duration * 30 + argData.durationFrames
+                pres.version = 0
+                pres.squeezeBack = 0
+
+        pres.durationSeconds = (pres.duration // 30)
+        pres.hasLdl = not pres.squeezeBack
+        print('has ldl')
+        if pres.hasLdl:
+            (pres.ldlBulletins, pres.ldlWarningMode, pres.activeWarnings) = _activeBulletins()
+            pres.nationalLdl = 0
+            pres.lasCrawlText = _getLasCrawlText()
+            print('LAS CRAWL TEXT')
+        pres.bkgAudioFilename = None
+        if not tscard.SDI_URL:
+            pres.bkgAudioFilename = _getBkgAudioFilename()
+        #if pres.channelChangeRequest == 1 or pres.alternateFeedActive == 1:
+        #    pres.bkgAudioFilename = _getBkgAudioFilename()
+        scheds = _selectSchedule(pres)
+        if scheds != None:
+            _load(id, pres.duration, pres.expire, scheds, pres)
+        return
+else:
+    def load(argData):
+        id = argData.id
+        pres = _params.clone()
+        pres.update(argData)
+        pres.expireTime = time.time() + pres.expire / 30
+        _presentations[id] = pres
+        pres.startTime = time.time()
+        pres.mediaNum = argData.logoId
+        pres.duration = argData.duration * 30 + argData.durationFrames
+        pres.channelChangeRequest = 0
+        pres.suppressLocal = 0
+        pres.alternateFeedActive = 0
+        if pres.vbid != '000':
+            pres.alternateFeedActive = 1
+        interestList = dsm.defaultedConfigGet('interestlist.vbid')
+        if interestList == None:
+            interestList = []
+        if pres.vbid in interestList:
+            pres.suppressLocal = 1
+            Log.info('AltFeed: Upcoming local will be suppressed to view an alternate feed. VBID = %s' % (pres.vbid,))
+        pres.defaultGroup = _config.defaultPlaylistGroup
+        pres.group = dsm.defaultedConfigGet('PlaylistOverride', pres.defaultGroup)
+        print("flavvy map")
         try:
-            (pres.duration, pres.version, pres.squeezeBack) = _flavorMap[pres.flavor]
-            pres.override = 0
-        except Exception:
-            pres.override = 1
-            pres.duration = argData.duration
-            pres.version = 0
-            pres.squeezeBack = 0
-    elif twc.personality == "FlatRock":
-        try:
+            print("trying")
             flavorMap = dsm.defaultedConfigGet('FlavorMap')
             for (key, value) in flavorMap:
                 if pres.flavor == key:
-                    (pres.version, pres.squeezeBack) = value
+                    (pres.version, pres.isFullScreen) = value
+                    print("tried", pres.version, pres.isFullScreen)
                     break
 
             pres.override = 0
-        except Exception:
+        except:
+            print("flavdefealuts")
             pres.override = 1
             pres.duration = argData.duration * 30 + argData.durationFrames
             pres.version = 0
-            pres.squeezeBack = 0
+            pres.isFullScreen = 1
+        
+        pres.override = 1
+        pres.duration = argData.duration * 30 + argData.durationFrames
+        pres.version = 0
+        pres.isFullScreen = 1
 
-    pres.durationSeconds = (pres.duration // 30)
-    pres.hasLdl = not pres.squeezeBack
-    print('has ldl')
-    if pres.hasLdl:
+        pres.durationSeconds = argData.duration
+        ldlSuppression = dsm.defaultedConfigGet('SuppressLDL', 0)
+        if ldlSuppression == 0:
+            pres.hasLdl = not pres.isFullScreen
+            if pres.hasLdl:
+                pres.nationalLdl = 0
+                pres.bkgAudioFilename = None
+                if pres.channelChangeRequest == 1 or pres.alternateFeedActive == 1:
+                    pres.bkgAudioFilename = _getBkgAudioFilename()
         (pres.ldlBulletins, pres.ldlWarningMode, pres.activeWarnings) = _activeBulletins()
-        pres.nationalLdl = 0
         pres.lasCrawlText = _getLasCrawlText()
-        print('LAS CRAWL TEXT')
-    pres.bkgAudioFilename = None
-    if not tscard.SDI_URL:
-        pres.bkgAudioFilename = _getBkgAudioFilename()
-    #if pres.channelChangeRequest == 1 or pres.alternateFeedActive == 1:
-    #    pres.bkgAudioFilename = _getBkgAudioFilename()
-    scheds = _selectSchedule(pres)
-    if scheds != None:
-        _load(id, pres.duration, pres.expire, scheds, pres)
-    return
+        scheds = _selectSchedule(pres)
+        if scheds != None:
+            _load(id, pres.duration, pres.expire, scheds, pres)
+        return
 
+if twc.personalityCode < 4:
+    def run(argData):
+        id = argData.id
+        pres = _presentations[id]
+        del _presentations[id]
+        rtime = getattr(argData, 'time', 0)
+        frame = getattr(argData, 'frame', 0)
+        pres.startTime = rtime
+        pres.startFrame = frame
+        _run(id, pres.startTime, pres.startFrame, pres)
+        _cull()
+        if pres.channelChangeRequest == 1:
+            domestic.wxdata.changeIrdChannel(pres.irdChannel)
+        return
+else:
+    def checkChannelChangeTime(irdChannel):
+        channelChangeRequest = 0
+        changeTime = dsm.defaultedConfigGet('irdChannelChangeRequestTime')
+        if changeTime > 0:
+            gtimetuple = time.gmtime()
+            nowgtime = calendar.timegm(gtimetuple)
+            if nowgtime >= changeTime:
+                channelChangeRequest = 1
+                strgtimetuple = time.gmtime(changeTime)
+                strgtime = time.strftime('%Y/%m/%d %H:%M:%S', strgtimetuple)
+                Log.info('AltFeed: IRD channel change requested to occur at %s.  Change to channel %s is pending.' % (strgtime, irdChannel))
+        return channelChangeRequest
+        return
+    def run(argData):
+        id = argData.id
+        errorFlag = None
+        timeForChannelChange = 0
+        Log.info('Entering run for Id: %s' % (id,))
+        irdChannel = dsm.defaultedConfigGet('irdChannelChangeRequest')
+        try:
+            pres = _presentations[id]
+            del _presentations[id]
+        except:
+            errorFlag = 'run: Exception occured accessing _presentations for id: %s' % id
 
-def run(argData):
-    id = argData.id
-    pres = _presentations[id]
-    del _presentations[id]
-    rtime = getattr(argData, 'time', 0)
-    frame = getattr(argData, 'frame', 0)
-    pres.startTime = rtime
-    pres.startFrame = frame
-    _run(id, pres.startTime, pres.startFrame, pres)
-    _cull()
-    if pres.channelChangeRequest == 1:
-        domestic.wxdata.changeIrdChannel(pres.irdChannel)
-    return
+        if _channelChangeNeeded(irdChannel) and checkChannelChangeTime(irdChannel) and errorFlag is None:
+            if not pres.isFullScreen:
+                timeForChannelChange = 0
+                Log.info('run: Channel Change requested, but not a fullscreen flavor.  So no ANF switching for now. id = %s.' % (id,))
+            else:
+                timeForChannelChange = 1
+                Log.info('run: Running next presentation before starting ANF, id = %s.' % (id,))
+        if errorFlag == None:
+            try:
+                rtime = getattr(argData, 'time', 0)
+                frame = getattr(argData, 'frame', 0)
+                pres.startTime = rtime
+                pres.startFrame = frame
+                pres.sidChannel = dsm.defaultedConfigGet('irdLastRequestedChannel')
+                Log.info('Starting _run for ID: %s' % (id,))
+                _run(id, pres.startTime, pres.startFrame, pres)
+                _cull()
+                Log.info('Ended _run for ID: %s' % (id,))
+            except:
+                errorFlag = 'run: Exception occurred running job id ' + id
+
+            if errorFlag == None and timeForChannelChange == 1:
+                domestic.wxdata.changeIrdChannel(irdChannel)
+        if errorFlag is not None:
+            Log.info(errorFlag)
+            if timeForChannelChange == 1:
+                Log.info('AltFeed: Unable to perform channel change at this time. Waiting for cover up.')
+        Log.info('run: End run for id = %s.' % (id,))
+        return
 
 
 _presentations = {}
@@ -120,24 +238,43 @@ _starId = dsm.defaultedConfigGet('starId', None)
 _ldlState = None
 _schedOverrideTmpl = "[\n    DynamicSchedule('%(flavor)s'),\n    StaticSchedule('%(flavor)s'),\n]"
 _schedLdlOnlyTmpl = "[\n    DynamicSchedule('Ldl.ldl1'),\n    StaticSchedule('FallbackLdl%(durationSeconds)s'),\n]"
+_schedANFLOT8LDLTmpl = "[\n    DynamicSchedule('Local.anfLOT8LDL'),\n]"
 _schedGroupOverrideTmpl = "[\n    DynamicSchedule('%(group)s.%(durationSeconds)s.%(version)s'),\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n    CompositeSchedule([\n        StaticSchedule('Fallback%(durationSeconds)s'),\n        StaticSchedule('FallbackLdl%(durationSeconds)s'),\n    ]),\n    StaticSchedule('Fallback%(durationSeconds)s'),\n]"
 _schedGroupDefaultTmpl = "[\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n    CompositeSchedule([\n        StaticSchedule('Fallback%(durationSeconds)s'),\n        StaticSchedule('FallbackLdl%(durationSeconds)s'),\n    ]),\n    StaticSchedule('Fallback%(durationSeconds)s'),\n]"
 _schedNoFallbackTmpl = "[\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n]"
 _schedNoFallbackGroupOverrideTmpl = "[\n    DynamicSchedule('%(group)s.%(durationSeconds)s.%(version)s'),\n    DynamicSchedule('%(defaultGroup)s.%(durationSeconds)s.%(version)s'),\n]"
+
 _flavorMap = {'S': (57 * 30 + 20, 0, 1), 'D': (60 * 30, 0, 0), 'E': (60 * 30, 1, 0), 'K': (90 * 30, 0, 0), 'O': (90 * 30, 1, 0), 'N': (120 * 30, 0, 0), 'L': (120 * 30, 1, 0), 'M': (120 * 30, 2, 0), 'T': (140 * 30, 0, 0)}
 
 forcelascrawl = True
 
 def _getLasCrawlText():
-    print('get lascrawl')
     global _ldlState
-    params = dsm.defaultedConfigGet('Ldl_LASCrawl')
-    if params == None or params.serialNum == None or params.crawls == None:
-        print('NO crawls valid at this time')
-        return None
-    if _ldlState == None or _ldlState.serialNum != params.serialNum:
-        times = [0] * len(params.crawls)
-        _ldlState = twccommon.Data(serialNum=params.serialNum, lastUsedTimes=times)
+    print('get lascrawl')
+    if twc.personalityCode < 4:
+        params = dsm.defaultedConfigGet('Ldl_LASCrawl')
+        if params == None or params.serialNum == None or params.crawls == None:
+            print('NO crawls valid at this time')
+            return None
+        if _ldlState == None or _ldlState.serialNum != params.serialNum:
+            times = [0] * len(params.crawls)
+            _ldlState = twccommon.Data(serialNum=params.serialNum, lastUsedTimes=times)
+    else:
+        ldlSuppression = dsm.defaultedConfigGet('SuppressLDL', 0)
+        if ldlSuppression == 1:
+            twccommon.Log.info('ANF is suppressing LDL crawls')
+            return None
+        useIBOSSLASCrawl = dsm.defaultedGet('useIBOSSConfig')
+        if useIBOSSLASCrawl:
+            params = dsm.defaultedConfigGet('Ldl_IBOSSLASCrawl')
+        else:
+            params = dsm.defaultedConfigGet('Ldl_LASCrawl')
+        if params == None or params.serialNum == None or params.crawls == None:
+            twccommon.Log.info('NO crawls valid at this time')
+            return None
+        if _ldlState == None or _ldlState.serialNum != params.serialNum:
+            times = [0] * len(params.crawls)
+            _ldlState = twccommon.Data(serialNum=params.serialNum, lastUsedTimes=times)
     i = 0
     now = int(time.time())
     validList = []
@@ -239,25 +376,42 @@ def _cull():
     return
 
 
-def _selectSchedule(pres):
-    scheds = None
-    if pres.override:
-        scheds = _schedOverrideTmpl % pres.__dict__
-    elif pres.suppressLocal:
-        Log.info('AltFeed: Suppressing local %s / alternate feed %d frames' % (pres.flavor, pres.duration))
-        if pres.hasLdl:
-            scheds = _schedLdlOnlyTmpl % pres.__dict__
-    elif pres.squeezeBack:
-        if pres.group == pres.defaultGroup:
-            scheds = _schedNoFallbackTmpl % pres.__dict__
+if twc.personalityCode < 4:
+    def _selectSchedule(pres):
+        scheds = None
+        if pres.override:
+            scheds = _schedOverrideTmpl % pres.__dict__
+        elif pres.suppressLocal:
+            Log.info('AltFeed: Suppressing local %s / alternate feed %d frames' % (pres.flavor, pres.duration))
+            if pres.hasLdl:
+                scheds = _schedLdlOnlyTmpl % pres.__dict__
+        elif pres.squeezeBack:
+            if pres.group == pres.defaultGroup:
+                scheds = _schedNoFallbackTmpl % pres.__dict__
+            else:
+                scheds = _schedNoFallbackGroupOverrideTmpl % pres.__dict__
+        elif pres.group == pres.defaultGroup:
+            scheds = _schedGroupDefaultTmpl % pres.__dict__
         else:
-            scheds = _schedNoFallbackGroupOverrideTmpl % pres.__dict__
-    elif pres.group == pres.defaultGroup:
-        scheds = _schedGroupDefaultTmpl % pres.__dict__
-    else:
-        scheds = _schedGroupOverrideTmpl % pres.__dict__
-    return scheds
-    return
+            scheds = _schedGroupOverrideTmpl % pres.__dict__
+        return scheds
+        return
+else:
+    def _selectSchedule(pres):
+        scheds = None
+        if wxdata.isAFullScreenSuppressedFlavor(pres.flavor):
+            pres.suppressLocal = 1
+        if pres.override:
+            scheds = _schedOverrideTmpl % pres.__dict__
+        elif pres.suppressLocal:
+            Log.info('AltFeed: Suppressing local %s / alternate feed %d frames' % (pres.flavor, pres.duration))
+            scheds = _schedANFLOT8LDLTmpl % pres.__dict__
+        elif pres.group == pres.defaultGroup:
+            scheds = _schedGroupDefaultTmpl % pres.__dict__
+        else:
+            scheds = _schedGroupOverrideTmpl % pres.__dict__
+        return scheds
+        return
 
 
 def _load(id, duration, expire, scheds, params):

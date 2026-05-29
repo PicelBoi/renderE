@@ -34,7 +34,7 @@ def process(mtype, debug=False, vonly=False):
     mapname = md.mapName
     print(mapname)
     if not vonly:
-        mappath = nh.requestNetAssetExt(f"/rsrc/maps/{mapname}")
+        mappath = nh.requestNetAssetExt(f"/usr/local/twc/rsrc/maps/{mapname}")
         if mapname.endswith(".bfg"):
             dt = rg.newjoin(os.environ["RENDEREROOT"], "temp", f"{mapname}.jpeg")
             if os.path.exists(dt):
@@ -92,7 +92,7 @@ def process(mtype, debug=False, vonly=False):
     
     for v in md.vectors:
         vx = v.split(".")[-2]
-        ex, pl = vginfo(nh.requestNetAssetExt(f"/rsrc/maps/{v}"))
+        ex, pl = vginfo(nh.requestNetAssetExt(f"/usr/local/twc/rsrc/maps/{v}"))
         if debug:
             ib, idraw = draw_polylines(pl, ex)
         if hasattr(md, "datacutCoordinate"):

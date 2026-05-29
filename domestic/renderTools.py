@@ -16,6 +16,7 @@ from twc.embedded.renderd.RenderScript import SetPosition
 from twc.embedded.renderd.RenderScript import Text
 from twc.embedded.renderd.RenderScript import TTFont
 from twc.embedded.renderd.RenderScript import TIFF_Image
+from twc.embedded.renderd.RenderScript import Clipper
 import twc
 from functools import reduce
 
@@ -63,7 +64,7 @@ def sequenceOnPage(page, grSet, delayList, repeat=0):
 
 def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDataBar=0, fadeDuration=5, displayDuration=0, rgba=None):
     print("DNA", f"_{twc.personality}_")
-    if twc.personality == "FlatRock":
+    if twc.personalityCode == 3:
         print("FlatrockDNA")
         if rgba:
             (r, g, b, a) = rgbaConvert(*rgba)
@@ -102,7 +103,7 @@ def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDa
             ef.addEffect(Fader(None, 1, 0, fadeDuration), fadeDuration)
             page.addItem(ef)
         return renderObj
-    else:
+    elif twc.personalityCode < 3:
         (r, g, b, a) = rgbaConvert(212, 212, 50, 255)
         font = TTFont('/rsrc/fonts/Interstate-Bold', 30, t=30)
         gr = Text(font, text)
@@ -139,7 +140,7 @@ def dataNotAvailable(page, xPos=None, yPos=None, text='Data Not Available', noDa
             page.addItem(ef)
         return renderObj
 
-modern = False
+modern = (twc.personality == "Texarkana")
 
 def createTitleBarModern(string1, string2):
     vBevSize = 3
@@ -154,7 +155,9 @@ def createTitleBarModern(string1, string2):
     titleFont1 = TTFont('/rsrc/fonts/Interstate-Bold', 36, 0)
     titleFont2 = TTFont('/rsrc/fonts/Interstate-Bold', 30 + 6, 0)
     crTitleTxt = CompositeRenderable()
+    crTitleTxt2 = CompositeRenderable()
     crTitleBev = CompositeRenderable()
+    crTitleBev2 = CompositeRenderable()
     
     bgSide = 10
     bgSide2 = 8
@@ -186,7 +189,7 @@ def createTitleBarModern(string1, string2):
             pp.addVertex(tr2w+padH*2+bg2O, 0, r, g, b, a)
             pp.setPosition(bg1X+tr1w, bg1Y+bg2V)
 
-            crTitleBev.addItem(pp)
+            crTitleBev2.addItem(pp)
             
             pp = Polygon()
             (r, g, b, a) = rgbaConvert(235, 235, 235, 255)
@@ -199,12 +202,12 @@ def createTitleBarModern(string1, string2):
             pp.addVertex(tr2w+padH*2-bgInset*2+bg2O, 0, r2, g2, b2, a2)
             pp.setPosition(bg1X+bgInset+tr1w, bg1Y+bgInset+bg2V)
             
-            crTitleBev.addItem(pp)
+            crTitleBev2.addItem(pp)
             
             tr2.setPosition(tr1X+tr1w+bgInset+bg2O, tr1Y+bg2TV)
             (r, g, b, a) = rgbaConvert(20, 20, 20, 255)
             tr2.setColor(r, g, b, a)
-            crTitleTxt.addItem(tr2)
+            crTitleTxt2.addItem(tr2)
         pp = Polygon()
         (r, g, b, a) = rgbaConvert(80, 139, 200, 255)
         (r2, g2, b2, a2) = rgbaConvert(82, 121, 161, 255)
@@ -233,7 +236,7 @@ def createTitleBarModern(string1, string2):
         (r, g, b, a) = rgbaConvert(235, 235, 235, 255)
         tr1.setColor(r, g, b, a)
         crTitleTxt.addItem(tr1)
-    return (crTitleBev, crTitleTxt)
+    return (crTitleBev, crTitleBev2, crTitleTxt, crTitleTxt2)
 
 def createTitleBar(string1, string2, s1BkgColor, s2BkgColor, s1TxtColor, s2TxtColor, s1ShdColor, s2ShdColor):
     if modern:
@@ -485,4 +488,32 @@ def ldlWatchSlide(p, grList, duration):
 
     return
 
+def slide(p, gr, time, dur, dest):
+    
+    sx, sy = gr.position()
+    es = EffectSequencer(gr)
+    es.addEffect(NullEffect(None), int(time))
+    es.addEffect(Slider(None, (dest[0]-sx)/dur, (dest[1]-sy)/dur), int(dur))
+    p.addItem(gr)
 
+def clipObj(p, gr, left=0, right=720, top=720, bottom=0):
+    c = Clipper(gr)
+    c.clip(Clipper.CP_LEFT, left, 0)
+    c.clip(Clipper.CP_RIGHT, right, 0)
+    c.clip(Clipper.CP_TOP, top, 0)
+    c.clip(Clipper.CP_BOTTOM, bottom, 0)
+
+def createBox(p, pos, size, color):
+    gr = Box()
+    gr.setSize(*size)
+    gr.setPosition(*pos)
+    r,g,b,a = color
+    gr.setColor(r,g,b,a)
+    return gr
+
+def createText(p, text, font, color, pos):
+    t = Text(font, text)
+    r,g,b,a = color
+    t.setColor(r,g,b,a)
+    t.setPosition(*pos)
+    return t

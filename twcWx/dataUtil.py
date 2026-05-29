@@ -3,7 +3,7 @@
 # Decompiled from: Python 3.13.2 (main, Feb  4 2025, 14:51:09) [Clang 16.0.0 (clang-1600.0.26.6)]
 # Embedded file name: dataUtil.py
 # Compiled at: 2005-12-01 07:18:53
-import twccommon, twcWx.SkyCondMapping as sky, twcWx.TextFcstMapping as txt, twcWx.IncidentTypeMapping as inc, twcWx.BackgroundMusicMapping as bkgMusic, twcWx.PromoMessageMapping as promoMsg, twcWx.WelcomeMessageMapping as welcomeMsg
+import twccommon, twcWx.SkyCondMapping as sky, twcWx.TextFcstMapping as txt, twcWx.IncidentTypeMapping as inc, twcWx.BackgroundMusicMapping as bkgMusic, twcWx.PromoMessageMapping as promoMsg, twcWx.WelcomeMessageMapping as welcomeMsg , twcWx.HolidayThemeMapping as holidayTheme
 incidentTypeMap = inc.IncidentTypeMapping(1)
 
 def getIncidentType(typeID, mappingFile, default=None):
@@ -103,6 +103,23 @@ def getWelcomeMessageAt(mappingFile, index):
 
     return
 
+holidayThemeMap = holidayTheme.HolidayThemeMapping(1)
+
+def getHolidayThemeList(mappingFile):
+    result = holidayThemeMap.getList(mappingFile)
+    return result
+    return
+
+
+def getHolidayTheme(date, mappingFile):
+    list = holidayThemeMap.getList(mappingFile)
+    holiday = None
+    for h in list:
+        if date == h.date:
+            holiday = h.holiday
+            break
+    return holiday
+    
 
 def validateAttr(obj, attrs):
     for attr in attrs:

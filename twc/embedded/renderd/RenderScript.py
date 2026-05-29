@@ -8,6 +8,8 @@ import rendereglobals as rg
 from . import _renderd
 import os
 
+load_stuff = {}
+
 class ObjectWrapper:
 
     def __init__(self):
@@ -16,6 +18,19 @@ class ObjectWrapper:
     def __del__(self):
         pass
 
+    def add_loaded(self):
+        cname = self.__class__.__name__
+        if cname not in load_stuff:
+            load_stuff[cname] = 1
+        else:
+            load_stuff[cname] += 1
+    
+    def remove_loaded(self):
+        cname = self.__class__.__name__
+        if cname not in load_stuff:
+            load_stuff[cname] = 0
+        else:
+            load_stuff[cname] -= 1
 
 class Layer(ObjectWrapper):
 
@@ -32,6 +47,9 @@ class Layer(ObjectWrapper):
             self.totals.append(page.duration())
         else:
             self.totals.append(page.duration()+self.totals[-1])
+    
+    def __del__(self):
+        self.pages = []
 
 
 class Page(ObjectWrapper):
@@ -90,6 +108,9 @@ class Page(ObjectWrapper):
 
     def duration(self):
         return self._duration
+
+    def unload(self):
+        self.__del__(True)
 
     def __del__(self, manual=False):
         for i in self._elements:
@@ -194,6 +215,8 @@ class SetLayer(PageCommand):
         self.lname = lname
         self.layer = layer
 
+    def unload(self):
+        self.layer = None
 
 class AppendLayer(PageCommand):
 
@@ -201,6 +224,9 @@ class AppendLayer(PageCommand):
         PageCommand.__init__(self, activeFrame)
         self.lname = lname
         self.layer = layer
+    
+    def unload(self):
+        self.layer = None
 
 
 class RemoveLayer(PageCommand):
@@ -209,13 +235,15 @@ class RemoveLayer(PageCommand):
         PageCommand.__init__(self, activeFrame)
         self.lname = lname
 
+    def unload(self):
+        self.layer = None
 
 class ActivateLayer(PageCommand):
 
     def __init__(self, activeFrame, lname):
         PageCommand.__init__(self, activeFrame)
         self.lname = lname
-
+    
 
 class DeactivateLayer(PageCommand):
 
@@ -223,6 +251,8 @@ class DeactivateLayer(PageCommand):
         PageCommand.__init__(self, activeFrame)
         self.lname = lname
 
+    def unload(self):
+        self.layer = None
 
 class SelectInputSource(PageCommand):
 
@@ -288,6 +318,8 @@ class SetLayerCmd(RenderCommand):
         self.lname = lname
         self.layer = layer
 
+    def unload(self):
+        self.layer = None
 
 class AppendLayerCmd(RenderCommand):
 
@@ -295,6 +327,8 @@ class AppendLayerCmd(RenderCommand):
         self.lname = lname
         self.layer = layer
 
+    def unload(self):
+        self.layer = None
 
 class RemoveLayerCmd(RenderCommand):
 
@@ -380,6 +414,7 @@ class GraphicRenderable(Renderable):
         self.seq_start_after = False
         self._color = (1, 1, 1, 1)
         self.unloaded = False
+        self.dynamicfilter = None
     
     def size(self):
         return self._size
@@ -423,6 +458,8 @@ class GraphicRenderable(Renderable):
         return self._color
         return
 
+    def addDynamicFilter(self, filter):
+        self.dynamicfilter = filter
 
 class Box(GraphicRenderable):
 
@@ -484,6 +521,16 @@ class Clock(GraphicRenderable):
         self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
         rg.rl.image_alpha_premultiply(self.cimg)
 
+    def unload(self):
+        if self.cimg:
+            rg.rl.unload_image(self.cimg)
+            self.cimg = None
+        if self.cachedimg:
+            rg.rl.unload_image(self.cachedimg)
+            self.cachedimg = None
+        if self.cachedtex:
+            rg.rl.unload_texture(self.cachedtex)
+            self.cachedtex = None
 
 class TimeCode(GraphicRenderable):
 
@@ -510,7 +557,7 @@ def crop_text(surf: rg.pg.Surface):
 
 class Text(GraphicRenderable):
 
-    def __init__(self, font : TTFont, str):
+    def __init__(self, font : TTFont, str, debug=False):
         GraphicRenderable.__init__(self)
         self.fnt = font
         self.s = builtins.str(str)
@@ -531,6 +578,7 @@ class Text(GraphicRenderable):
         self._textsize = self.textbase.size
         self._size = self.textbase.size
         self.cimg = None
+        self.debug = debug
     
     def create_cimg(self):
         if self.fnt.shadow:
@@ -545,6 +593,8 @@ class Text(GraphicRenderable):
         buf = BytesIO()
         rg.pg.image.save(newsurf, buf, ".bmp")
         self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
+        if self.debug:
+            rg.rl.export_image(self.cimg, "cimgg.png")
         rg.rl.image_alpha_premultiply(self.cimg)
     
     def unload(self):
@@ -601,25 +651,35 @@ class Marquee(Text):
     
     
 
-
 class QTMovie(GraphicRenderable):
 
     def __init__(self, name, evict=0):
+        self.loop = 0
+        self.idx = -1
         GraphicRenderable.__init__(self)
+        self.images = []
         _renderd.createQTMovie(self, name, evict)
         return
 
     def getNumFrames(self):
-        return _renderd.QTMovie_getNumFrames(self)
+        return len(self.images)
         return
 
     def setLooping(self, looping):
-        return _renderd.QTMovie_setLooping(self, looping)
+        self.loop = looping
         return
+
+    def unload(self):
+        for im in self.images:
+            rg.rl.unload_image(im)
+        self.images = []
+        for tx in self.textures:
+            rg.rl.unload_texture(tx)
+        self.textures = []
 
 class Icon(GraphicRenderable):
 
-    def __init__(self, name:str, evict=0):
+    def __init__(self, name:str, evict=0, loop=1, delayAnim=0):
         GraphicRenderable.__init__(self)
         if name.startswith("/rsrc/icons_s/"):
             name = name.replace("/rsrc/icons_s/", "/media/icons/small/", 1)
@@ -632,6 +692,8 @@ class Icon(GraphicRenderable):
         self.name = name
         self.evict = evict
         self.unloaded = False
+        self.loop = loop
+        self.delayAnim = delayAnim
         _renderd.createIcon(self, name, evict)
         return
     
@@ -654,10 +716,13 @@ class Icon(GraphicRenderable):
                 self._ims[i] = None
         self.unloaded = True
 
+class DynamicImage(GraphicRenderable):
+    def __init__(self, target, filter, evict=0):
+        GraphicRenderable.__init__(self)
+        target.addDynamicFilter(filter)
 
 class Image(GraphicRenderable):
     pass
-
 
 class JPEG_Image(Image):
 
@@ -690,7 +755,6 @@ class TIFF_Image(Image):
             if rg.rl.is_image_valid(self.im2):
                 rg.rl.unload_image(self.im2)
                 self.im2 = None
-
 class CompositedImage(Image):
 
     def __init__(self, debug=False):
@@ -799,7 +863,26 @@ class CompositeRenderable(GraphicRenderable):
                 top = pos[1]+size[1]
             else:
                 top = max(top, pos[1]+size[1])
+        if not top:
+            top = 0
+        if not right:
+            right = 0
         return (abs(right), abs(top))
+    
+    def bsize(self):
+        xx, yy = self.position()
+        
+        rell = 0
+        relb = 0
+        
+        for child in self.items:
+            rx, ry = child.position()
+            rx -= xx
+            ry -= yy
+            rell = min(rell, rx)
+            relb = min(relb, ry)
+        
+        return rell, relb
 
 class ScrollingCompositeRenderable(CompositeRenderable):
 
@@ -1016,9 +1099,13 @@ class Clipper(GraphicEffect):
         self.bottom = bottom
         if target != None:
             self.setTarget(target)
+        self.planeclipper = False
+        self.planes = []
         return
 
     def clip(self, plane, pos, step=0.0):
+        self.planes.append([plane, pos, step])
+        self.planeclipper = True
         #_renderd.Clipper_clip(self, plane, pos, step)
         return
 
@@ -1161,6 +1248,7 @@ class AudioRenderable(Renderable):
         if hasattr(self, "file"):
             if self.file:
                 self.file.stop()
+                del self.file
 
 class Audio(AudioRenderable):
 
@@ -1258,6 +1346,9 @@ class EffectSequencer(Renderable):
         self._eval_fader()
         return
 
+    def unload(self):
+        self.effects = []
+        self.activeeffects = []
 
 class ImageSequencer(Renderable):
 
@@ -1338,4 +1429,47 @@ class AudioNullEffect(AudioEffect):
             self.setTarget(target)
         return
 
+class ImageFilter(Renderable):
+    pass
 
+class BlendImageFilter(ImageFilter):
+    MODE_SOFT_LIGHT = 0
+    def __init__(self, mask, mode, useMaskAlpha=1, x=0, y=0, w=720, h=480):
+        self.mask = mask
+        self.mode = mode
+        self.useMaskAlpha = useMaskAlpha
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+class GaussianBlurImageFilter(ImageFilter):
+    def __init__(self, x=0, y=0, w=720, h=480):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+class LineRenderer(GraphicRenderable):
+    def __init__(self, thickness=1):
+        GraphicRenderable.__init__(self)
+        self.vertices = []
+        self.leftmost = 0
+        self.rightmost = 0
+        self.topmost = 0
+        self.bottommost = 0
+        self.thickness = 1
+        return
+
+    def addVertex(self, x, y, r=1, g=1, b=1, a=1):
+        self.vertices.append((rg.rl.Vector3(x, y, -rg.zzz), r, g, b, a))
+        if x < self.leftmost:
+            self.leftmost = x
+        if y > self.topmost:
+            self.topmost = y
+        if x > self.rightmost:
+            self.rightmost = x
+        if y < self.bottommost:
+            self.bottommost = y
+        self._size = (abs(self.rightmost-self.leftmost), abs(self.topmost-self.bottommost))
+        return

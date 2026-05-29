@@ -32,27 +32,60 @@ class AnimatedMap(twc.products.Product):
 
         # set image root
         imageRoot = os.environ["RENDEREROOT"]
-        self.updateData(
-                # here's the MOST important thing we set in here -- we need this
-                # productString for "everything" in the map world. We use it to
-                # locate map cuts, data images (if any), config entries, etc
-                productString = 'Config.%s.%s' % (dsm.getConfigVersion(), self.getName(),),
+        if twc.personality == "WxScan":
+            prodString = 'Config.%s.%s.%s.%s.%s' % (dsm.getConfigVersion(),
+                params.package, params.packageInst, params.product,
+                params.productInst)
 
-                # set the base image root, each product will append its own 
-                # product-specific sub-dir
-                imageRoot=imageRoot,
+            # get all additional info about the map cut (especially the datacut type
+            # and geographic location)
+            mapDataString = prodString + '.MapData'
+            mapCutData    = dsm.defaultedGet(mapDataString)
 
-                # list of data images to display (we'll figure this out in the product)
+            dataCutType = mapCutData.datacutType
+            dataCutInfo = dataCutType.split('.')
+
+            self.updateData(
+                productString = prodString,
+
+                # figure out the data type so we know what directory to look in
+                imageRoot = imageRoot + '/%s/%s.cuts/' % (dataCutInfo[0], dataCutInfo[1]),
+
+                mapLocation = dataCutInfo[1], # us, pr, ak, hi, etc
+
+                # list of data images to display
                 imageList = [],
 
-                # image parameters (-1 = undefined until the product defines them)
+                # image parameters (-1 = undefined)
                 imageFrequency = -1, # in seconds
                 maxImages      = -1, # image file count
 
                 # display "timing" for each image: show image for 'x' frames
-                # (-1 = undefined until the product defines them)
+                # (-1 = undefined)
                 imageDuration      = -1,  # in frames
                 lastImageDuration  = -1)  # in frames (frame count)
+        else:
+            self.updateData(
+                    # here's the MOST important thing we set in here -- we need this
+                    # productString for "everything" in the map world. We use it to
+                    # locate map cuts, data images (if any), config entries, etc
+                    productString = 'Config.%s.%s' % (dsm.getConfigVersion(), self.getName(),),
+
+                    # set the base image root, each product will append its own 
+                    # product-specific sub-dir
+                    imageRoot=imageRoot,
+
+                    # list of data images to display (we'll figure this out in the product)
+                    imageList = [],
+
+                    # image parameters (-1 = undefined until the product defines them)
+                    imageFrequency = -1, # in seconds
+                    maxImages      = -1, # image file count
+
+                    # display "timing" for each image: show image for 'x' frames
+                    # (-1 = undefined until the product defines them)
+                    imageDuration      = -1,  # in frames
+                    lastImageDuration  = -1)  # in frames (frame count)
 
 
     def _loadData(self): 
@@ -76,10 +109,16 @@ class AnimatedMap(twc.products.Product):
             return
 
         # see if we have any data (TODO: fix ignoreImageExpiration someday for debugging):
-        data.imageList = dataUtil.getValidFileList(dataPath=data.imageDir,
-                                                   prefix=data.productString,
-                                                   suffix='*[0-9].tif',
-                                                   startTimeNdx=3, endTimeNdx=4, sortIndex=3)
+        if twc.personality == "WxScan":
+            data.imageList = dataUtil.getValidFileList(dataPath=data.imageRoot,
+                                                    prefix=data.productString,
+                                                    suffix='*[0-9].tif',
+                                                    startTimeNdx=6, endTimeNdx=7, sortIndex=6)
+        else:
+            data.imageList = dataUtil.getValidFileList(dataPath=data.imageDir,
+                                                    prefix=data.productString,
+                                                    suffix='*[0-9].tif',
+                                                    startTimeNdx=3, endTimeNdx=4, sortIndex=3)
 
         # IF we need to check for gaps AND we found valid images
         if (self._maxAllowedImageGap >= 0) and (len(data.imageList) > 0):

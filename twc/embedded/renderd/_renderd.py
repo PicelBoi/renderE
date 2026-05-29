@@ -1,5 +1,5 @@
 import rendereglobals as rg
-from PIL import Image
+from PIL import Image, ImageFilter
 from io import BytesIO
 import os
 import glob
@@ -28,20 +28,28 @@ def createImage(self, name, evict=0, x1=0, y1=0, x2=1, y2=1):
         print(f"No suitable image found for {ogname}!")
         exit(1)
     
+    yy1 = 1-y2
+    yy2 = 1-y1
     arr = BytesIO()
-    if name.endswith((".tif", ".tiff")) and False: #keeping this just in case
-        im = pg.image.load(name)
-        im2 = pg.Surface(im.size, pg.SRCALPHA)
-        im2.blit(im, (0, 0), special_flags=pg.BLEND_PREMULTIPLIED)
-        pg.image.save(im2, arr, "PNG")
-    else:
+    
+    try:
         im = Image.open(name).convert("RGBA")
+        if (x1 != 0) or (y1 != 0) or (x2 != 1) or (y2 != 1):
+            im = im.crop((x1*im.width, y1*im.height, x2*im.width, yy2*im.height))
         im.save(arr, format="PNG")
+    except:
+        if name.endswith((".tif", ".tiff")): #keeping this just in case
+            im = pg.image.load(name)
+            new_size = (im.width * (x2 - x1), im.height * (yy2 - yy1))
+            im2 = pg.Surface(new_size, pg.SRCALPHA)
+            im2.blit(im, (-x1*im.width, -yy1*im.height))#, special_flags=pg.BLEND_PREMULTIPLIED)
+            pg.image.save(im2, arr, "PNG")
     arr = arr.getvalue()
     self.im2 = rl.load_image_from_memory('.png', arr, len(arr))
     rl.image_alpha_premultiply(self.im2)
     self.texture = None
     self._size = (self.im2.width, self.im2.height)
+    self.optimal_size = (self.im2.width, self.im2.height)
 
 def createIcon(self, name, evict=0):
     ogname = name+""
@@ -82,7 +90,7 @@ def createTTFont(self, name, pointSize, shadow, sr=0.08, sg=0.08, sb=0.08, sa=1.
     self.pxSize = round(pointSize)
     if (name, self.pxSize) in rg.font_cache:
         cached = rg.font_cache[(name, pointSize)]
-        self.font = cached
+        self.font, self.reallineheight, self.ascent, self.descent = cached
     else:
         ogname = name+""
         pname = parsePath(name)
@@ -96,15 +104,13 @@ def createTTFont(self, name, pointSize, shadow, sr=0.08, sg=0.08, sb=0.08, sa=1.
             exit(1)
         
         self.font = pg.Font(name, self.pxSize)
-        rg.font_cache[(name, self.pxSize)] = self.font
+        self.ascent = self.font.get_ascent()*0.93
+        self.descent = self.font.get_descent()*0.93
+        ag = self.font.render("Ag", True, (255, 255, 255)).get_height()
+        ag2 = self.font.render("Ag\nAg", True, (255, 255, 255)).get_height()
+        self.reallineheight = (ag2-ag)*0.93
+        rg.font_cache[(name, self.pxSize)] = (self.font, self.reallineheight, self.ascent, self.descent)
     self.scol = (sr, sg, sb, sa)
-    self.ascent = self.font.get_ascent()*0.93
-    self.descent = self.font.get_descent()*0.93
-    self.cachedtex = None
-    
-    ag = self.font.render("Ag", True, (255, 255, 255)).get_height()
-    ag2 = self.font.render("Ag\nAg", True, (255, 255, 255)).get_height()
-    self.reallineheight = (ag2-ag)*0.93
 
 def createAudio(self):
     return
@@ -131,3 +137,39 @@ def createAudioClip(self, name, evict=0, duration_limit=0, loop_limit=1):
     self.mix = 1
     self.single_play = 0
     self.btype = 1
+
+import av
+#import numpy as np
+def createQTMovie(self, name, evict=0):
+    ogname = name+""
+    pname = parsePath(name)
+    if os.path.exists(ogname+".mov"):
+        name = ogname+".mov"
+    elif os.path.exists(pname+".mov"):
+        name = pname+".mov"
+    else:
+        name = nethandler.requestNetAssetExt(name, "mov")
+    self.images = []
+    if not name:
+        self.name = None
+        self.cap = None
+        self.textures = []
+        raise Exception(ogname)
+    cap = av.open(name)
+    self.name = name
+    self.cap = cap
+    vs = cap.streams.video[0]
+
+    i = 0
+    for frame in cap.decode(video=0):
+        if type(frame) == av.VideoFrame:
+            frameimg = frame.to_ndarray(format="rgba")
+            im = Image.fromarray(frameimg)
+            arr = BytesIO()
+            im.save(arr, format="PNG")
+            arr = arr.getvalue()
+            img = rl.load_image_from_memory('.png', arr, len(arr))
+            rl.image_alpha_premultiply(img)
+            self.images.append(img)
+            self._size = im.size
+    self.textures = [None] * len(self.images)

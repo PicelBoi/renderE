@@ -52,6 +52,7 @@ class AnimatedMap(twc.products.Product):
                 # (-1 = undefined until the product defines them)
                 imageDuration      = -1,  # in frames
                 lastImageDuration  = -1)  # in frames (frame count)
+        data = self.getData()
 
 
     def _loadData(self): 

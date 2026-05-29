@@ -22,7 +22,7 @@ def init(config):
 
 def load(id, duration, expire, schedules, params, runlogEvents=None):
     try:
-        if twc.personality == "FlatRock":
+        if twc.personalityCode > 2:
             fname = '%s/playlistload' % tempdir
             open(fname, 'w').close()
         if duration == 0:
@@ -39,7 +39,7 @@ def load(id, duration, expire, schedules, params, runlogEvents=None):
         if presentations == None:
             Log.error("couldn't generate a presentation")
             return
-        elif twc.personality == "FlatRock":
+        if twc.personalityCode == 3:
             fname = '%s/playlistgenerate' % tempdir
             open(fname, 'w').close()
         argData.presentations = presentations
@@ -78,13 +78,13 @@ def run(id, startTime, startFrame, params=None):
 
     try:
         _runRenderScriptFiles(rsFiles)
-        if twc.personality == "FlatRock":
+        if twc.personalityCode > 2:
             fname = '%s/playlistrun' % tempdir
             open(fname, 'w').close()
     except Exception:
         Log.logCurrentException('error running presentation')
 
-    # if twc.personality == "FlatRock":
+    # if twc.personalityCode == 3:
     #     if hasattr(pparams, 'sidChannel'):
     #         irdChannelSidTable = dsm.defaultedConfigGet('irdChannelSidTable.%s' % pparams.sidChannel)
     #         if irdChannelSidTable == None:
@@ -280,7 +280,7 @@ class _ProdLoader(twc.products.ProductLoader):
         return
 
 
-if twc.personality == "Perris":
+if twc.personalityCode < 2:
     def getAttribs(product, params=None):
         cfgVersion = int(dsm.getConfigVersion())
         kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.Override' % cfgVersion]
@@ -289,7 +289,21 @@ if twc.personality == "Perris":
             fullParams = twccommon.mergeStructs([params, fullParams])
         return fullParams
         return
-elif twc.personality == "FlatRock":
+elif twc.personalityCode == 4:
+    def getAttribs(product, prodInst, params=None):
+        cfgVersion = int(dsm.getConfigVersion())
+        try:
+            #kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.%s.%d' % (cfgVersion, product, prodInst), 'Config.%d.Override' % cfgVersion]
+            kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.Override' % cfgVersion]
+        except:
+            print("EEEEE!")
+            print(product, prodInst, params, cfgVersion)
+            raise
+        fullParams = twc.getAttribList(kl)
+        if params:
+            fullParams = twccommon.mergeStructs([params, fullParams])
+        return fullParams
+else:
     def getAttribs(product, prodInst, params=None):
         cfgVersion = int(dsm.getConfigVersion())
         #kl = ['Config', 'Config.%d' % cfgVersion, 'Config.%d.%s' % (cfgVersion, product), 'Config.%d.%s.%d' % (cfgVersion, product, prodInst), 'Config.%d.Override' % cfgVersion]
@@ -298,11 +312,11 @@ elif twc.personality == "FlatRock":
         if params:
             fullParams = twccommon.mergeStructs([params, fullParams])
         return fullParams
-        return
 
 import nethandler
 def _findFile(prodType, fname):
-    paths = ['%s/%s' % (_ROOT, prodType), _ROOT]
+    paths1_5 = ['net%s/%s' % (_NETROOT, prodType), _NETROOT]
+    paths = ['%s/%s' % (_ROOT, prodType), _ROOT] + paths1_5
     paths2 = ['%s/%s' % (_NETROOT, prodType), _NETROOT]
     paths3 = ['%s/%s' % (_NETROOT, prodType), _NETROOT]
     print("FINDFILE PATHS")
@@ -368,7 +382,7 @@ def _buildBestSchedPresentations(argData, schedLoaders):
             params = argData.params.clone()
             _pl.setDefaultParams(params)
             schedule = schedLoader.getSchedule(argData.duration)
-            if twc.personality == "FlatRock":
+            if twc.personalityCode == 3:
                 for (prodType, playlist) in schedule.items():
                     print("Setting Playlist Schedule", prodType, playlist)
                     prodLabels = []
@@ -413,9 +427,9 @@ def _buildViewportPresentation(argData, prodType, playlist):
     print("LPROPS", vpPres.layerProps, 'viewport.%s' % prodType)
     vpPres.layerProps.name = '%s_%s' % (prodType, argData.id)
     vpPres.layerProps.expire = argData.expire
-    if twc.personality == "Perris":
+    if twc.personalityCode < 2:
         vpPres.prodSchedule = list(map((lambda e: (e.getName(), e.getDuration())), playlist))
-    elif twc.personality == "FlatRock":
+    else:
         vpPres.prodSchedule = list(map((lambda e: (e.getName(), e.getDuration(), e.getProdInstance())), playlist))
     startTime = 0
     startFrameOffset = 0

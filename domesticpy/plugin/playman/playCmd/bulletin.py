@@ -114,6 +114,8 @@ def load():
     params = twccommon.Data()
     params.bulletinCrawl = bulletinCrawl
     params.immediateReplacement = _params.immediateReplacement
+    if twc.personality == "Watt":
+        params.changeType = _params.changeType
     params.activate = _crawlActive
     params.firstLoad = _firstLoad
     params.bulletinActive = 0
@@ -326,6 +328,11 @@ def _updatePresentation(lastRotation, rotation):
         _params.immediateReplacement = immediate
     except NameError:
         return
+    if twc.personality == "Watt":
+        if lastRotation:
+            _params.changeType = 'update'
+        else:
+            _params.changeType = 'create'
     now = time.time()
     _params.bulletins = []
     i = 1
