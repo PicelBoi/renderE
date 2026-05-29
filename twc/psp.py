@@ -90,8 +90,8 @@ def evalPage(page, namespace={}, includePath=None):
                         break
             print(fname, " found!")
             if not fname:
-                includePath = ["/usr/twc/domestic/products/pm/incl/"]
-                for path in includePath:
+                includePath2 = [p.replace("net/", "") for p in includePath]
+                for path in includePath2:
                     temp = '%s/%s' % (path, val)
                     fn = nethandler.requestNetAssetExt(temp)
                     if fn is not None:
