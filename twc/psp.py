@@ -5,6 +5,7 @@
 # Compiled at: 2007-01-12 11:17:30
 import os.path, rsfix
 import nethandler
+import traceback
 
 _includePath = ['.']
 
@@ -90,7 +91,7 @@ def evalPage(page, namespace={}, includePath=None):
                         break
             print(fname, " found!")
             if not fname:
-                includePath = ["/usr/twc/domestic/products/pm/incl/"]
+                includePath = ["/usr/twc/domestic/products/pm/incl"]
                 for path in includePath:
                     temp = '%s/%s' % (path, val)
                     fn = nethandler.requestNetAssetExt(temp)
@@ -119,12 +120,21 @@ def evalPage(page, namespace={}, includePath=None):
         try:
             exec(rsfix.fix_if(sub2).replace("os.stat", "newstat").replace("os.newaccess", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), namespace)
         except Exception as e:
+            with open("sub2explosion.txt", "w") as f:
+                f.write(sub2)
             raise e
         return sub1 + evalPage(sub3, namespace, includePath)
     elif cmd == '=':
         return sub1 + str(eval(sub2, namespace)) + evalPage(sub3, namespace, includePath)
     elif cmd == '-':
-        return sub1 + repr(eval(sub2, namespace)) + evalPage(sub3, namespace, includePath)
+        try:
+            return sub1 + repr(eval(sub2, namespace)) + evalPage(sub3, namespace, includePath)
+        except:
+            with open("subexplosion.txt", "w") as f:
+                f.write(page)
+            with open("subexplosione.txt", "w") as f:
+                f.write(traceback.format_exc())
+            raise
     else:
         raise RuntimeError('invalid psp tag %s' % (cmd,))
     return
