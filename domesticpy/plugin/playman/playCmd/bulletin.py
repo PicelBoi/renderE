@@ -41,7 +41,8 @@ def idle():
         _idleCnt = 0
         now = int(time.time())
         changed = 0
-        for bulletin in _bulletins.values():
+        bc = _bulletins.copy() #prevent issues caused by expiring
+        for bulletin in bc.values():
             if now >= bulletin.dispExpiration:
                 changed += 1
                 Log.info('bulletin expired %s-%s-%s' % (bulletin.pil, bulletin.pilExt, bulletin.county))

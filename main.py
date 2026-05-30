@@ -991,7 +991,7 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
         c4 /= 255
     pfader = (1 if not premult else fader)
     if type(quad) == Box:
-        pfader *= quad._color[3]
+        pfader *= c4
     try:
         col = rl.Color(min(round(quad._color[0]*255*pfader), 255), min(round(quad._color[1]*255*pfader), 255), min(round(quad._color[2]*255*pfader), 255), min(round(quad._color[3]*fader*255), 255))
     except Exception as e:
@@ -1120,8 +1120,10 @@ def draw_poly(quad : TIFF_Image, tex=white):
     
     pts = []
     
+    c = quad._color
     for p in pts2:
-        pts.append((rl.vector3_transform(p[0], mat), p[1]*p[4]*fader, p[2]*p[4]*fader, p[3]*p[4]*fader, p[4]*fader))
+        a=p[4]*c[3]*fader
+        pts.append((rl.vector3_transform(p[0], mat), p[1]*c[0]*a, p[2]*c[1]*a, p[3]*c[2]*a, a))
     #pts = pts2
     #rl.rl_enable_smooth_lines()
     rl.rl_begin(rl.RL_TRIANGLES)

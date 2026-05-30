@@ -328,7 +328,8 @@ def formatApparentTemp(windChill, heatIndex):
 
 def formatValue(val, rangeList, default=None):
     for (min, max, displayStr) in rangeList:
-        if val >= min and val <= max:
+        val2 = val or (min/2+max/2)
+        if val2 >= min and val2 <= max:
             return displayStr
 
     if default == None:
