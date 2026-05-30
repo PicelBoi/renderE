@@ -17,7 +17,7 @@ import time
 import random
 
 import builtins
-builtins.__dict__["renderElog"] = print #for testing purposes only
+builtins.__dict__["renderElog"] = lambda e : print(e, file=sys.stderr) #for testing purposes only
 
 if twc.personality == "WxScan":
     import wxscanpy.plugin.playman.playCmd.local as pmlc
@@ -76,7 +76,7 @@ screensize = (720, 480)
 zzz = 1
 rl = rg.rl
 
-rl.set_config_flags((rl.ConfigFlags.FLAG_WINDOW_UNDECORATED * args.noframe) | (rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT * args.trans) | rl.ConfigFlags.FLAG_WINDOW_ALWAYS_RUN)
+rl.set_config_flags((rl.ConfigFlags.FLAG_WINDOW_UNDECORATED * args.noframe) | (rl.ConfigFlags.FLAG_WINDOW_TRANSPARENT * args.trans) | rl.ConfigFlags.FLAG_WINDOW_ALWAYS_RUN | rl.ConfigFlags.FLAG_WINDOW_HIGHDPI)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(("localhost", 7245))
@@ -708,6 +708,7 @@ in vec4 fragColor;
 
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
+uniform vec2 resolution;
 
 uniform float xx;
 uniform float yy;
@@ -725,18 +726,22 @@ uniform float rr;
 uniform float tt;
 uniform float bb;
 
+uniform int disablelayerclip;
+
+uniform float renderw;
+uniform float renderh;
 
 out vec4 finalColor;
 
 void main() {
-    vec2 pos = gl_FragCoord.xy;
+    vec2 pos = gl_FragCoord.xy / vec2(renderw, renderh) * vec2(720, 480);
 
-    if ((
+    if (((
         (pos.x < xx) ||
         (pos.x > (xx + ww)) ||
         (pos.y < yy) ||
         (pos.y > (yy + hh))
-    ) ||
+    ) && (disablelayerclip == 0)) ||
     (
         (pos.x < xx2) ||
         (pos.x > (xx2 + ww2)) ||
@@ -788,15 +793,25 @@ blocB = rl.get_shader_location(lclipshader, "bb")
 blocL = rl.get_shader_location(lclipshader, "ll")
 blocR = rl.get_shader_location(lclipshader, "rr")
 
+renw = rl.get_shader_location(lclipshader, "renderw")
+renh = rl.get_shader_location(lclipshader, "renderh")
+
+disablelc = rl.get_shader_location(lclipshader, "disablelayerclip")
+
 rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(720*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(480*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(720)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(480)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 
 rl.set_shader_value(lclipshader, blocL, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 rl.set_shader_value(lclipshader, blocB, rl.ffi.new('float *', float(0)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(720*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(480*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(720)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(480)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+
+rl.set_shader_value(lclipshader, renw, rl.ffi.new('float *', rl.get_render_width()), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+rl.set_shader_value(lclipshader, renh, rl.ffi.new('float *', rl.get_render_height()), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+
+rl.set_shader_value(lclipshader, disablelc, rl.ffi.new("int *", 0), rl.ShaderUniformDataType.SHADER_UNIFORM_INT)
 
 def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), premult=False, clipoverride=None):
     effects = quad.effects
@@ -987,15 +1002,17 @@ def draw_quad(quad : TIFF_Image, tex=white, debug=False, se=False, off=(0, 0), p
     rl.rl_disable_depth_test()
     rl.rl_disable_depth_mask()
     
-    rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(clipx*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(clipy*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(clipw*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(cliph*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, disablelc, rl.ffi.new("int *", int(drawlevel > 0)), rl.ShaderUniformDataType.SHADER_UNIFORM_INT)
+    
+    rl.set_shader_value(lclipshader, bloc5, rl.ffi.new('float *', float(clipx)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc6, rl.ffi.new('float *', float(clipy)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc7, rl.ffi.new('float *', float(clipw)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, bloc8, rl.ffi.new('float *', float(cliph)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
 
-    rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(absclip_top*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, blocB, rl.ffi.new('float *', float(absclip_bottom*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, blocL, rl.ffi.new('float *', float(absclip_left*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(absclip_right*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocT, rl.ffi.new('float *', float(absclip_top)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocB, rl.ffi.new('float *', float(absclip_bottom)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocL, rl.ffi.new('float *', float(absclip_left)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(lclipshader, blocR, rl.ffi.new('float *', float(absclip_right)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
     
     #print(clipx, clipy, clipw, cliph)
     
@@ -1104,21 +1121,21 @@ def draw_poly(quad : TIFF_Image, tex=white):
     pts = []
     
     for p in pts2:
-        pts.append((rl.vector3_transform(p[0], mat), p[1]*p[4], p[2]*p[4], p[3]*p[4], p[4]))
+        pts.append((rl.vector3_transform(p[0], mat), p[1]*p[4]*fader, p[2]*p[4]*fader, p[3]*p[4]*fader, p[4]*fader))
     #pts = pts2
-    rl.rl_enable_smooth_lines()
+    #rl.rl_enable_smooth_lines()
     rl.rl_begin(rl.RL_TRIANGLES)
     
     for i in range(1, len(pts) - 1):
         # Triangle 1: Vertex 0, i, i+1
         # Setting color per vertex
-        rl.rl_color4f(pts[0][1], pts[0][2], pts[0][3], pts[0][4]*fader)
+        rl.rl_color4f(pts[0][1], pts[0][2], pts[0][3], pts[0][4])
         rl.rl_vertex3f(pts[0][0].x, pts[0][0].y, pts[0][0].z)
         
-        rl.rl_color4f(pts[i][1], pts[i][2], pts[i][3], pts[i][4]*fader)
+        rl.rl_color4f(pts[i][1], pts[i][2], pts[i][3], pts[i][4])
         rl.rl_vertex3f(pts[i][0].x, pts[i][0].y, pts[i][0].z)
         
-        rl.rl_color4f(pts[i+1][1], pts[i+1][2], pts[i+1][3], pts[i+1][4]*fader)
+        rl.rl_color4f(pts[i+1][1], pts[i+1][2], pts[i+1][3], pts[i+1][4])
         rl.rl_vertex3f(pts[i+1][0].x, pts[i+1][0].y, pts[i+1][0].z)
     rl.rl_end()
 
@@ -1515,18 +1532,18 @@ def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0})
             mode_3d_tracker += 1
             rl.rl_disable_depth_test()
             rl.rl_disable_depth_mask()
-            rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
+            #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
             #draw_quad_nocal(DummyQuad(0, 0, 720, 480), item.ftex.texture, transfo, fader)
             
             # if type(item) == RichText:
             #     xxr, yyr = item._position
             #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
             # el
-            rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+            #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
             draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects), item.ftex.texture, se=True, premult=True)
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
         else:
-            rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
+            #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
             rl.begin_texture_mode(extra["tex"])
             rl.rl_set_clip_planes(0.01, 10000)
             rl.begin_mode_3d(extra["cam"])
@@ -1640,7 +1657,7 @@ import pygame
 while not rl.window_should_close():
     ft = 0
     pmbl.idle()
-    fclock.tick_busy_loop(30)
+    fclock.tick_busy_loop(29.25 if twc.personality == "WxScan" else 30)
     iiix = 0
     if sdi:
         if not vidtex and sdih.size != (0, 0):
@@ -1688,10 +1705,10 @@ while not rl.window_should_close():
             activedrawlayer = l
             
             #rl.set_shader_value(lclipshader, bloc, rl.Vector4(l[6], l[7], l[8], l[9]), rl.ShaderUniformDataType.SHADER_UNIFORM_VEC4)
-            rl.set_shader_value(lclipshader, bloc, rl.ffi.new('float *', float(l[6]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-            rl.set_shader_value(lclipshader, bloc2, rl.ffi.new('float *', float(l[7]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-            rl.set_shader_value(lclipshader, bloc3, rl.ffi.new('float *', float(l[8]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
-            rl.set_shader_value(lclipshader, bloc4, rl.ffi.new('float *', float(l[9]*2)), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc, rl.ffi.new('float *', float(l[6])), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc2, rl.ffi.new('float *', float(l[7])), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc3, rl.ffi.new('float *', float(l[8])), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
+            rl.set_shader_value(lclipshader, bloc4, rl.ffi.new('float *', float(l[9])), rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT)
             draw_item(l[1])
         for _ in range(len(audio_chans)-lastaud):
             audio_depths.append(l[4])
@@ -1739,7 +1756,7 @@ while not rl.window_should_close():
             if not isinstance(layer[1].pages, list):
                 return 0
             return len(layer[1].pages)
-        layer_list = "\n".join(["Layer Order:"] + [f"{l[0]} (depth {l[4]}) (transforms: x y {l[6]} {l[7]} w h {l[8]} {l[9]} sx sy {l[10]} {l[11]} tx ty {l[12]} {l[13]}) (Loops: {l[5]}) (Pages: {getnpages(l)})" for l in sortedLayers])
+        layer_list = "\n".join([f"Render Size {rl.get_render_width()} {rl.get_render_height()}"] + [f"{l[0]} (depth {l[4]}) (transforms: x y {l[6]} {l[7]} w h {l[8]} {l[9]} sx sy {l[10]} {l[11]} tx ty {l[12]} {l[13]}) (Loops: {l[5]}) (Pages: {getnpages(l)})" for l in sortedLayers])
         #layer_list = "\n".join(["QC Info:"] + [f"{type(cmd).__name__} {tm} {fo} {round(time.time()+RenderControl.rctf/30-tm-fo/30)}" for cmd, tm, fo, whatevss in rg.queuedcommands])
         lines = windbg.split("\n")
         if len(lines) > 12:
