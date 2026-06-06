@@ -16,10 +16,11 @@ renderE is intended as a replacement for a VM emulating the IntelliStar 1, a sys
 
 The following arguments are supported by renderE:
 
-* A positional argument will be treated as a URI for input. Set it to `wxs` for continuous music playback from the `bgm` folder.
+* A positional argument will be treated as a URI for input.
 * `-t` and `--trans` will give the window a transparent background (for overlaying).
 * `-n` and `--noframe` will remove the window frame (useful for capture on mac).
 * `-o` and `--offline` will disable fetching assets from the web.
+* `-bgm` and `--bgmplayer` will play background music. This overrides stream audio.
 
 ### Commands
 
