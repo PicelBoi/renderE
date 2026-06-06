@@ -468,7 +468,7 @@ class Box(GraphicRenderable):
         return
         
 
-
+import dateutil as dut
 class Clock(GraphicRenderable):
     LEFT = 0
     RIGHT = 1
@@ -495,6 +495,10 @@ class Clock(GraphicRenderable):
         self.fnt = font
         self.ascent = self.fnt.ascent
         self.descent = self.fnt.descent
+        if timezone == "":
+            self.tz = None
+        else:
+            self.tz = dut.tz.gettz(timezone)
         
         self.textbase : rg.pg.Surface = self.fnt.font.render(builtins.str(self.s), True, (255, 255, 255))
         self.textbase = rg.pg.transform.smoothscale_by(self.textbase, (1, 0.93))
@@ -805,13 +809,7 @@ class VectorImage(GraphicRenderable):
             tempsurf = rg.pg.Surface((fl[0], fl[1]), rg.pg.SRCALPHA)
             
             for pol in self.polys:
-                for i in range(len(pol)):
-                    if i == (len(pol)-1):
-                        break
-                    first = pol[i]
-                    second = pol[i+1]
-                    
-                    rg.pg.draw.aaline(tempsurf, (255, 255, 255), first, second, self.lineThickness)
+                rg.pg.draw.lines(tempsurf, (255, 255, 255), False, pol, self.lineThickness)
             rg.pg.image.save(tempsurf, buf, ".bmp")
             bv = buf.getvalue()
             self.im = rg.rl.load_image_from_memory(".bmp", bv, len(bv))

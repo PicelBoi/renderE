@@ -20,7 +20,6 @@ def newjoin(*args):
     return pp
 
 pg.font.init()
-pg.mixer.init(frequency=48000, size=-16, channels=2)
 
 sys.path.insert(0, os.path.dirname(__file__))
 
