@@ -5,6 +5,14 @@ import pyray as rl
 import numpy as np
 import pygame as pg
 from fractions import Fraction
+import miniaudio as ma
+import audioop as aop
+import multiprocessing as mp
+import time
+
+print("single pringle ready to mingle")
+
+ready_to_init_mixer = th.Event()
 
 clock = pg.Clock()
 INPUT_LOCAL_NTSC = 0
@@ -12,6 +20,8 @@ INPUT_NET_NTSC = 1
 INPUT_MPEGSPOOL = 2
 INPUT_LOCAL_SDI = 3
 INPUT_NET_SDI = 4
+
+DISABLE_AUDIO = False
 
 ASPECT_RATIO_CHANGE = False
 
@@ -35,6 +45,42 @@ def setMovieLooping(val):
     global looping
     looping = val
 
+
+def pipe_stream(aqueue, volval, vsptsval, vsperfval):
+    print("pipe stream")
+    samples = bytearray()
+    required_frames = yield b""
+    intern_buf = []
+    done = False
+    while True:
+        required_bytes = required_frames * 2 * 2
+        while len(samples) < required_bytes:
+            if len(intern_buf) == 0:
+                ib = aqueue.recv()
+                intern_buf.extend(ib)
+            ap = intern_buf.pop(0)
+            if not done and ap[0] != 0:
+                done = True
+                print("done")
+                vsptsval.value = float(ap[0])
+                vsperfval.value = time.perf_counter()
+            volled = ap[1] #aop.mul(ap[1], 2, self.vol)
+            samples.extend(volled)
+        required_frames = yield aop.mul(samples[:required_bytes], 2, volval.value)
+        samples = samples[required_bytes:]
+    
+def pb_jams(aqueue, volval, vsptsval, vsperfval):
+    print("i'm pb jams")
+    with ma.PlaybackDevice(output_format=ma.SampleFormat.SIGNED16, nchannels=2, sample_rate=48000) as dev:
+        stream = pipe_stream(aqueue, volval, vsptsval, vsperfval)
+        next(stream)
+        dev.start(stream)
+        while True:
+            time.sleep(0.02)
+
+def pg_jams():
+    print("i'm pg jams")
+
 class TSStream:
     def __init__(self, url):
         print("opening")
@@ -49,18 +95,19 @@ class TSStream:
         self.astf = None
         
         self.prune = 0
+        self.has_audio = False
         
         self.astream = None
         self.aparams = ()
     
     def thread_runner(self):
-        buf = 1600
         print("TR")
         vst = self.av.streams.video[0]
         dec = (vst,)
         dar = vst.display_aspect_ratio or (vst.width/vst.height)
         print("SIZE: ", vst.width, vst.height, "DAR", dar)
-        self.size = (round(vst.height * dar * (1+0.125*ASPECT_RATIO_CHANGE)), vst.height)
+        self.has_audio = (len(self.av.streams.audio) > 0)
+        self.size = (720, 480)
         if len(self.av.streams.audio) > 0:
             ast = self.av.streams.audio[0]
             dec = (vst, ast)
@@ -72,6 +119,7 @@ class TSStream:
         )
         
         print("decoding")
+        
         for frame in self.av.decode(*dec):
             if isinstance(frame, av.VideoFrame):
                 self.vtb = frame.time_base
@@ -81,10 +129,6 @@ class TSStream:
             elif isinstance(frame, av.AudioFrame):
                 #self.aparams = (frame.sample_rate, 16, frame.layout.nb_channels)
                 self.aparams = (48000, 16, 2)
-                if not self.astream:
-                    #rl.set_audio_stream_buffer_size_default(buf)
-                    self.astream = rl.load_audio_stream(*self.aparams)
-                    rl.play_audio_stream(self.astream)
                 self.atb = frame.time_base
                 
                 self.astf = {8: "char", 16: "int16_t", 32: "float"}[16]
@@ -95,25 +139,24 @@ class TSStream:
                     )
         
         print("decode end")
-
 class Handler():
     def __init__(self, url):
         self.ts = TSStream(url)
-        tth = th.Thread(target=self.ts.thread_runner).start()
-        self.buf = 1600
         
         self.ppts = 0
         
         self.size = (0, 0)
-        self.astream = rl.load_audio_stream(48000, 16, 2)
-        rl.play_audio_stream(self.astream)
         
         self.frame = None
+        self.vol = 1
+        self.volval = mp.Value("d", 1.0)
+        tth = th.Thread(target=self.ts.thread_runner).start()
         th.Thread(target=self.runner).start()
     
     def set_volume(self, volume):
-        if self.ts.astream:
-            rl.set_audio_stream_volume(self.ts.astream, volume)
+        self.vol = volume
+        self.volval.value = self.vol
+    
     
     def runner(self):
         
@@ -124,44 +167,119 @@ class Handler():
                 return float("inf")
         
         ts = self.ts
-        samples = bytearray()
         
         cpts = 0
         
-        while True:
-            self.ppts = cpts
-            self.size = self.ts.size
-            if len(ts.audio) > 0:
-                if ts.astream and rl.is_audio_stream_processed(ts.astream):
-                    cant = False
-                    #it's times four, because 2 channels and 2 bytes. how revolutionary!
-                    first = True
-                    while len(samples) < self.buf*4:
-                        if len(ts.audio) == 0:
-                            cant = True
-                            break
-                        cc = ts.audio.pop(0)
-                        #if cpts == 0:
-                        cpts = cc[0]
-                        samples.extend(cc[1])
-                        first = False
-                    if not cant:
-                        npa = np.frombuffer(samples[:self.buf*4], dtype=np.int16)
-                        rl.update_audio_stream(ts.astream, rl.ffi.new(ts.astf+" []", npa.tolist()), self.buf)
-                        samples = samples[self.buf*4:]
-            else:
-                print("DROWNING")
-            if ts.frames:
-                frr = min(ts.frames, key=lambda x : abs(cpts-x[0]))
-                ts.prune = frr[0]
-                self.frame = frr[1]
+        # def audiogen():
+        #     lprune = None
+        #     nonlocal samples, video_s_pts
+        #     print("audiogen")
+        #     required_frames = yield b""
+        #     print("audiogenf", required_frames)
+        #     while True:
+        #         required_bytes = required_frames * 2 * 2
+        #         while len(samples) < required_bytes:
+        #             if len(ts.audio) > 0:
+        #                 ap = ts.audio.pop(0)
+        #                 if video_s_pts is None:
+        #                     video_s_pts = (ap[0], time.perf_counter())
+        #             else:
+        #                 while True:
+        #                     if len(ts.audio) > 0:
+        #                         ap = ts.audio.pop(0)
+        #                         break
+        #                     time.sleep(0.05)
+        #                     print("DROWN")
+        #             volled = aop.mul(ap[1], 2, self.vol)
+        #             samples.extend(volled)
+        #         required_frames = yield samples[:required_bytes]
+        #         samples = samples[required_bytes:]
+        
+        if self.ts.has_audio and not DISABLE_AUDIO:
+            aqueue = mp.Pipe(False)
             
-            # if cpts != 0:
-            #     cpts += Fraction(1, 30)
+            vsptsval = mp.Value("d", 0.0)
+            vsperfval = mp.Value("d", 0.0)
+            args = (aqueue[0], self.volval, vsptsval, vsperfval)
+            print("arrgs", args)
+            p = mp.Process(target=pb_jams, args=args, daemon=True)
+            p.start()
             
-            clock.tick_busy_loop(30)
+            
+            def auding():
+                cl = pg.Clock()
+                while True:
+                    if len(ts.audio) > 0:
+                        #print("putting an audio")
+                        alen = len(ts.audio)
+                        adata = []
+                        for i in range(alen):
+                            adata.append(ts.audio.pop(0))
+                        #print("putting", tsa)
+                        aqueue[1].send(adata)
+                    cl.tick_busy_loop(30)
+            th.Thread(target=auding).start()
+            while True:
+                self.size = self.ts.size
+                if vsperfval.value != 0:
+                    cpts = vsptsval.value + (time.perf_counter()-vsperfval.value)
+                    if ts.frames:
+                        frr = min(ts.frames, key=lambda x : abs(cpts-x[0]))
+                        if frr[1] is not None:
+                            self.frame = frr[1]
+                            ts.prune = frr[0]-1
+                clock.tick_busy_loop(30)
+                if not p.is_alive():
+                    print("WHAT HAPPENED TO PB JAMS?", p.exitcode)
+        else:
+            vsperf = 0
+            vspts = 0
+            while True:
+                self.size = self.ts.size
+                if ts.frames:
+                    if vsperf == 0:
+                        vsperf = time.perf_counter()
+                        vspts = ts.frames[0][0]
+                    cpts = vspts + (time.perf_counter()-vsperf)
+                    frr = min(ts.frames, key=lambda x : abs(cpts-x[0]))
+                    if frr[1] is not None:
+                        self.frame = frr[1]
+                        ts.prune = frr[0]-1
+                clock.tick_busy_loop(30)
+        
+        
+        # while True:
+        #     self.ppts = cpts
+        #     self.size = self.ts.size
+        #     if len(ts.audio) > 0:
+        #         if ts.astream and rl.is_audio_stream_processed(ts.astream):
+        #             cant = False
+        #             first = True
+        #             while len(samples) < self.buf*4:
+        #                 if len(ts.audio) == 0:
+        #                     cant = True
+        #                     break
+        #                 cc = ts.audio.pop(0)
+        #                 #if cpts == 0:
+        #                 cpts = cc[0]
+        #                 samples.extend(cc[1])
+        #                 first = False
+        #             if not cant:
+        #                 npa = np.frombuffer(samples[:self.buf*4], dtype=np.int16)
+        #                 rl.update_audio_stream(ts.astream, rl.ffi.new(ts.astf+" []", npa.tolist()), self.buf)
+        #                 samples = samples[self.buf*4:]
+        #     else:
+        #         print("DROWNING")
+        #     if ts.frames:
+        #         frr = min(ts.frames, key=lambda x : abs(cpts-x[0]))
+        #         ts.prune = frr[0]
+        #         self.frame = frr[1]
+            
+        #     # if cpts != 0:
+        #     #     cpts += Fraction(1, 30)
+            
+        #     clock.tick_busy_loop(30)
 
-rl.init_audio_device()
 
 if __name__ == "__main__":
     import sys
