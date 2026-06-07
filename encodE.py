@@ -8,6 +8,7 @@ from datetime import datetime
 import sys
 import argparse
 import threading as th
+import re
 
 doonly = False
 only = ""
@@ -15,12 +16,20 @@ only = ""
 parser = argparse.ArgumentParser(description="i1 encoder")
 parser.add_argument("item", nargs="?", default="", help="The item to encode data for. Leave blank to encode all data except tag data.")
 parser.add_argument("-ns", "--nosensor", action="store_true", help="Excludes sensor data for CC.")
-parser.add_argument("-wxs", "--weatherscan", action="store_true", help="Enables Weatherscan mode.")
+parser.add_argument("-wxs", "--weatherscan", action="store_true", help="Enables Weatherscan data mode.")
+parser.add_argument("-nt", "--notraffic", action="store_true", help="Disables traffic data.")
+parser.add_argument("-nb", "--nobulletins", action="store_true", help="Only encode non-bulletin things.")
+parser.add_argument("-a", "--automatic", action="store_true", help="Encodes new data every 20 minutes.")
+parser.add_argument("-c", "--calm", action="store_true", help="Runs data encoding sequentially instead of all at once.")
 
 args = parser.parse_args()
 
 nosensor = args.nosensor
+notraffic = args.notraffic
+nb = args.nobulletins
 wxs = args.weatherscan
+calm = args.calm
+auto = args.automatic
 
 doonly = bool(args.item)
 only = args.item
@@ -145,7 +154,6 @@ if (not doonly or only == "sensor") and not nosensor:
         #wxdata.setData(f"obs", stat, data, dat["current"]["info"]["expires"])
         #dat["current"]["info"]["expires"]
         dsm.rset(f"obs.SENSOR", data, expiretime)
-    threads.append(th.Thread(target=getsensor))
 
 if not doonly or only == "obs":
     def getobs(i, stat):
@@ -182,42 +190,23 @@ if not doonly or only == "obs":
         except:
             print(traceback.print_exc())
             print(f"obs failure for {stat}")
-    for j, s in enumerate(obs):
-        threads.append(th.Thread(target=getobs, args=(j, s)))
 
 curr_time = time.time()
 y, m, d, H, M, S, wd, day, dst = time.localtime(curr_time)
 
 times = []
 
-#taken from TextForecast
-if (H < 4):
-    # Start with the 7PM yesterday to 7AM today data.
-    # The window for the start of this data (7PM) begins yesterday
-    # at noon (and extends to midnight).
-    # So, we are looking for the UTC of yesterday at noon.
-    times.append(time.mktime((y,m,d-1,12,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d,0,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
-elif (H < 16):
-    # Start with the data for 7AM - 7PM today
-    # This will be the UTC data of midnight today
-    times.append(time.mktime((y,m,d,0,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+1,12,0,0,0,0,-1)))
-else: 
-    # Start with the data for 7PM today to 7AM tomorrow
-    # This will be the UTC data of noon today.
-    times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+1,12,0,0,0,0,-1)))
-    times.append(time.mktime((y,m,d+2,0,0,0,0,0,-1)))
 #i'm just gonna... lie!
 def fixac(ac):
     codes = ac.split(":")
     return ":".join([c for c in codes if not c.startswith("DA")])
+
+def correct(phrase):
+    def sub(mat):
+        return mat.group(1)
+    
+    re.sub(r"([0-9]*)[FC]", sub, phrase)
+
 if not doonly or only == "text":
     def gettext(override=None):
         print(times)
@@ -234,7 +223,13 @@ if not doonly or only == "text":
                     fcsts.append(twccommon.Data(
                         daypartName=textfcst[ix]["day"]["daypart_name"],
                         audioCode=fixac(textfcst[ix]["day"]["vocal_key"]),
-                        phrase=textfcst[ix]["day"]["narrative"]
+                        phrase=correct(textfcst[ix]["day"]["narrative"]),
+                        
+                        shortcast=textfcst[ix]["day"]["shortcast"],
+                        qualifier=textfcst[ix]["day"]["qualifier"],
+                        temp_phrase=textfcst[ix]["day"]["temp_phrase"],
+                        wind_phrase=textfcst[ix]["day"]["wind_phrase"],
+                        pop_phrase=textfcst[ix]["day"]["pop_phrase"]
                     ))
                     expiry.append(textfcst[ix]["expire_time_gmt"])
                     done += 1
@@ -243,7 +238,13 @@ if not doonly or only == "text":
                     fcsts.append(twccommon.Data(
                         daypartName=textfcst[ix]["night"]["daypart_name"],
                         audioCode=fixac(textfcst[ix]["night"]["vocal_key"]),
-                        phrase=textfcst[ix]["night"]["narrative"]
+                        phrase=correct(textfcst[ix]["night"]["narrative"]),
+                        
+                        shortcast=textfcst[ix]["night"]["shortcast"],
+                        qualifier=textfcst[ix]["night"]["qualifier"],
+                        temp_phrase=textfcst[ix]["night"]["temp_phrase"],
+                        wind_phrase=textfcst[ix]["night"]["wind_phrase"],
+                        pop_phrase=textfcst[ix]["night"]["pop_phrase"]
                     ))
                     expiry.append(textfcst[ix]["expire_time_gmt"])
                     done += 1
@@ -254,7 +255,13 @@ if not doonly or only == "text":
                     fcsts.append(twccommon.Data(
                         daypartName=textfcst[ix]["night"]["daypart_name"],
                         audioCode=fixac(textfcst[ix]["night"]["vocal_key"]),
-                        phrase=textfcst[ix]["night"]["narrative"]
+                        phrase=correct(textfcst[ix]["night"]["narrative"]),
+                        
+                        shortcast=textfcst[ix]["night"]["shortcast"],
+                        qualifier=textfcst[ix]["night"]["qualifier"],
+                        temp_phrase=textfcst[ix]["night"]["temp_phrase"],
+                        wind_phrase=textfcst[ix]["night"]["wind_phrase"],
+                        pop_phrase=textfcst[ix]["night"]["pop_phrase"]
                     ))
                     expiry.append(textfcst[ix]["expire_time_gmt"])
                     done += 1
@@ -266,12 +273,6 @@ if not doonly or only == "text":
         except:
             traceback.print_exc()
             print("TextForecast generation failed!")
-    if not wxs:
-        threads.append(th.Thread(target=gettext))
-    else:
-        #i wish there was a better way to do this
-        for cid in coopid:
-            threads.append(th.Thread(target=gettext, args=(cid,)))
 
 if not doonly or only == "hourly":
     print(f"starting local hourly!")
@@ -294,8 +295,6 @@ if not doonly or only == "hourly":
         except:
             print(traceback.print_exc())
             print(f"daypart failure for {coop}")
-    for cop in list(hourlycoop):
-        threads.append(th.Thread(target=gethourly, args=(cop,)))
 
 if not doonly or only == "fcst":
     def getfcst(ci):
@@ -348,8 +347,6 @@ if not doonly or only == "fcst":
         cidlist = afcoop
     else:
         cidlist = coopid
-    for cl in cidlist:
-        threads.append(th.Thread(target=getfcst, args=(cl,)))
 
 if (not doonly or only == "uvf") or only == "tag":
     def getuvf(override=None):
@@ -374,12 +371,7 @@ if (not doonly or only == "uvf") or only == "tag":
         except:
             print(traceback.print_exc())
             print(f"uvf failure for {uvcoop}")
-    if not wxs:
-        threads.append(th.Thread(target=getuvf))
-    else:
-        #i wish there was a better way to do this
-        for cid in coopid:
-            threads.append(th.Thread(target=getuvf, args=(cid,)))
+    
 
 if only == "tag":
     def gettag():
@@ -425,7 +417,7 @@ if only == "tag":
             moldCount=None,
             reportTime=ow_my_lungs["fcstValid"][second_day]
         ), expiretime)
-    threads.append(th.Thread(target=gettag))
+    
 
 codes = {
     "CFW": "CFW005",
@@ -685,7 +677,7 @@ import socket
 import nethandler as nh
 import json
 
-if (not doonly or only == "bulletin") and only != "clearbulletin":
+if (not doonly or only == "bulletin") and only != "clearbulletin" and not nb:
     def getbull():
         print("starting bulletins")
         for c in counties:
@@ -730,17 +722,10 @@ if (not doonly or only == "bulletin") and only != "clearbulletin":
             except:
                 traceback.print_exc()
                 print(f"error on {c}!")
-    threads.append(th.Thread(target=getbull))
-
-if only == "clearbulletin":
-    headline_groups = [1, 2, 3, 4, 5]
-    for c in counties:
-        for g in headline_groups:
-            dsm.rset("bulletin.%s.%d" % (c, g), [], time.time())
 
 from datetime import datetime
 
-if (not doonly or only == "traffic") and tomtom_key and not wxs:
+if (not doonly or only == "traffic") and tomtom_key and not wxs and not notraffic:
     def gettraffic():
         print("starting traffic")
         incidents = {}
@@ -814,13 +799,112 @@ if (not doonly or only == "traffic") and tomtom_key and not wxs:
             print("processed incident", name)
             finalincidents += 1
         dsm.rset(f"incidents.{metroid}", twccommon.Data(count=finalincidents, rev=0), expiretime)
-    threads.append(th.Thread(target=gettraffic))
 
-for t in threads:
-    t.start()
+def encode():
+    global times
+    threads = []
+    
+    if (not doonly or only == "sensor") and not nosensor:
+        threads.append(th.Thread(target=getsensor))
+    
+    if not doonly or only == "obs":
+        for j, s in enumerate(obs):
+            threads.append(th.Thread(target=getobs, args=(j, s)))
+    
+    if not doonly or only == "text":
+        times = []
 
-for t in threads:
-    t.join()
+        #taken from TextForecast
+        if (H < 4):
+            # Start with the 7PM yesterday to 7AM today data.
+            # The window for the start of this data (7PM) begins yesterday
+            # at noon (and extends to midnight).
+            # So, we are looking for the UTC of yesterday at noon.
+            times.append(time.mktime((y,m,d-1,12,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d,0,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
+        elif (H < 16):
+            # Start with the data for 7AM - 7PM today
+            # This will be the UTC data of midnight today
+            times.append(time.mktime((y,m,d,0,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+1,12,0,0,0,0,-1)))
+        else: 
+            # Start with the data for 7PM today to 7AM tomorrow
+            # This will be the UTC data of noon today.
+            times.append(time.mktime((y,m,d,12,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+1,0,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+1,12,0,0,0,0,-1)))
+            times.append(time.mktime((y,m,d+2,0,0,0,0,0,-1)))
+        
+        if not wxs:
+            threads.append(th.Thread(target=gettext))
+        else:
+            #i wish there was a better way to do this
+            for cid in coopid:
+                threads.append(th.Thread(target=gettext, args=(cid,)))
+    
+    if not doonly or only == "hourly":
+        for cop in list(hourlycoop):
+            threads.append(th.Thread(target=gethourly, args=(cop,)))
+    
+    if not doonly or only == "fcst":
+        for cl in cidlist:
+            threads.append(th.Thread(target=getfcst, args=(cl,)))
+    
+    if (not doonly or only == "uvf") or only == "tag":
+        if not wxs:
+            threads.append(th.Thread(target=getuvf))
+        else:
+            #i wish there was a better way to do this
+            for cid in coopid:
+                threads.append(th.Thread(target=getuvf, args=(cid,)))
+    
+    if only == "tag":
+        threads.append(th.Thread(target=gettag))
+    
+    if (not doonly or only == "bulletin") and only != "clearbulletin" and not nb:
+        threads.append(th.Thread(target=getbull))
+    
+    if only == "clearbulletin":
+        headline_groups = [1, 2, 3, 4, 5]
+        for c in counties:
+            for g in headline_groups:
+                dsm.rset("bulletin.%s.%d" % (c, g), [], time.time())
+    
+    if (not doonly or only == "traffic") and tomtom_key and not wxs and not notraffic:
+        threads.append(th.Thread(target=gettraffic))
+    
+    if calm:
+        for t in threads:
+            t.start()
+            t.join()
+    else:
+        for t in threads:
+            t.start()
+
+        for t in threads:
+            t.join()
+
+if auto:
+    encode()
+    encoded = True
+    while True:
+        lt = time.localtime(time.time())
+        if (lt.tm_min % 20) == 0:
+            if not encoded:
+                encode()
+                encoded = True
+        else:
+            if encoded:
+                encoded = False
+                print("------------------------------")
+            time.sleep(1)
+            print(f"Next encode in {19-(lt.tm_min % 20)} mins {59-(lt.tm_sec % 60)} secs".ljust(34), end="\r")
+else:
+    encode()
 
 dsm.rcommit()
 
