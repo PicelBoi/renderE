@@ -887,6 +887,7 @@ def encode():
 
         for t in threads:
             t.join()
+    dsm.rcommit()
 
 if auto:
     encode()
@@ -905,8 +906,6 @@ if auto:
             print(f"Next encode in {19-(lt.tm_min % 20)} mins {59-(lt.tm_sec % 60)} secs".ljust(34), end="\r")
 else:
     encode()
-
-dsm.rcommit()
 
 exit()
 print("starting nws headlines")
