@@ -8,6 +8,7 @@ from fractions import Fraction
 import miniaudio as ma
 import audioop as aop
 import multiprocessing as mp
+import tkinter as tk
 import time
 
 print("single pringle ready to mingle")
@@ -71,12 +72,19 @@ def pipe_stream(aqueue, volval, vsptsval, vsperfval):
     
 def pb_jams(aqueue, volval, vsptsval, vsperfval):
     print("i'm pb jams")
-    with ma.PlaybackDevice(output_format=ma.SampleFormat.SIGNED16, nchannels=2, sample_rate=48000) as dev:
-        stream = pipe_stream(aqueue, volval, vsptsval, vsperfval)
-        next(stream)
-        dev.start(stream)
-        while True:
-            time.sleep(0.02)
+    def make_pbj():
+        with ma.PlaybackDevice(output_format=ma.SampleFormat.SIGNED16, nchannels=2, sample_rate=48000) as dev:
+            stream = pipe_stream(aqueue, volval, vsptsval, vsperfval)
+            next(stream)
+            dev.start(stream)
+            while True:
+                time.sleep(0.02)
+    th.Thread(target=make_pbj).start()
+    win = tk.Tk()
+    win.title("renderE stream audio")
+    label = tk.Label(win, text="Record this window for stream audio in OBS.\nThank you for using renderE!", font=("", 18))
+    label.pack()
+    win.mainloop()
 
 def pg_jams():
     print("i'm pg jams")
@@ -96,6 +104,7 @@ class TSStream:
         
         self.prune = 0
         self.has_audio = False
+        self.ready = th.Event()
         
         self.astream = None
         self.aparams = ()
@@ -104,8 +113,12 @@ class TSStream:
         print("TR")
         vst = self.av.streams.video[0]
         dec = (vst,)
-        dar = vst.display_aspect_ratio or (vst.width/vst.height)
-        print("SIZE: ", vst.width, vst.height, "DAR", dar)
+        
+        if not (vst.width or vst.height):
+            dar = 0
+        else:
+            dar = vst.display_aspect_ratio or (vst.width/vst.height)
+            print("SIZE: ", vst.width, vst.height, "DAR", dar)
         self.has_audio = (len(self.av.streams.audio) > 0)
         self.size = (720, 480)
         if len(self.av.streams.audio) > 0:
@@ -119,6 +132,7 @@ class TSStream:
         )
         
         print("decoding")
+        self.ready.set()
         
         for frame in self.av.decode(*dec):
             if isinstance(frame, av.VideoFrame):
@@ -195,7 +209,9 @@ class Handler():
         #         required_frames = yield samples[:required_bytes]
         #         samples = samples[required_bytes:]
         
+        self.ts.ready.wait()
         if self.ts.has_audio and not DISABLE_AUDIO:
+            print("ts has audio")
             aqueue = mp.Pipe(False)
             
             vsptsval = mp.Value("d", 0.0)
