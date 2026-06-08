@@ -649,7 +649,7 @@ else:
                     qx = effect.x
                     qy = effect.y
                 else:
-                    qx += mod2(effect.x)
+                    qx += effect.x
                     qy += effect.y
             elif type(effect) == SetSize:
                 quad._size = (effect.w, effect.h)
@@ -941,7 +941,7 @@ else:
                         qx = effect.x
                         qy = effect.y
                     else:
-                        qx += mod2(effect.x)
+                        qx += effect.x
                         qy += effect.y
             elif type(effect) == SetSize:
                 if not se:

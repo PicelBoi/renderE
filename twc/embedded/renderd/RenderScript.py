@@ -66,6 +66,7 @@ class Page(ObjectWrapper):
         self._onEndCommands = []
 
     def addItem(self, item):
+        item.added = True
         if isinstance(item, PageCommand):
             frame = item.activeFrame()
             if frame == 0:
@@ -414,6 +415,7 @@ class GraphicRenderable(Renderable):
         self.seq_start_after = False
         self._color = (1, 1, 1, 1)
         self.unloaded = False
+        self.added = False
         self.dynamicfilter = None
     
     def size(self):
@@ -844,6 +846,7 @@ class CompositeRenderable(GraphicRenderable):
             self.ftex = None
 
     def addItem(self, child):
+        child.added = True
         self.items.append(child)
         return
 
@@ -1322,11 +1325,11 @@ class EffectSequencer(Renderable):
     def __init__(self, target, repeat=0, loopLimit=0):
         self.effects = []
         self.activeeffects = []
-        self.timer = -1 #+target.seq_start_after #first frame is time 0 but 1 gets added first
+        self.timer = (not getattr(target, "added", True))-1 #+target.seq_start_after #first frame is time 0 but 1 gets added first
         self.total = 0
         self.repeat = repeat
         self.loopLimit = loopLimit
-        self.skipped = False
+        self.skipped = 0
         target.addEffectSequencer(self, repeat, loopLimit)
         return
 
