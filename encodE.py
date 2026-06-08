@@ -205,7 +205,7 @@ def correct(phrase):
     def sub(mat):
         return mat.group(1)
     
-    re.sub(r"([0-9]*)[FC]", sub, phrase)
+    return re.sub(r"([0-9]*)[FC]", sub, phrase)
 
 if not doonly or only == "text":
     def gettext(override=None):
