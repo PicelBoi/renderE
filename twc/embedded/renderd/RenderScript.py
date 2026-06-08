@@ -437,7 +437,6 @@ class GraphicRenderable(Renderable):
         return
 
     def setPosition(self, x, y):
-        self.seq_start_after = True
         self._position = (x, y)
         return
 
@@ -1185,6 +1184,7 @@ class SetPosition(PropertyEffect):
     def __init__(self, target=None, x=0, y=0):
         self.x = x
         self.y = y
+        self.fired = False
         if target != None:
             self.setTarget(target)
         return
@@ -1326,10 +1326,12 @@ class EffectSequencer(Renderable):
         self.effects = []
         self.activeeffects = []
         self.timer = (not getattr(target, "added", True))-1 #+target.seq_start_after #first frame is time 0 but 1 gets added first
+        
         self.total = 0
         self.repeat = repeat
         self.loopLimit = loopLimit
         self.skipped = 0
+        
         target.addEffectSequencer(self, repeat, loopLimit)
         return
 

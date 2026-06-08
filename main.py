@@ -567,9 +567,23 @@ else:
         seq.timer += 1
         al = []
         al.append(seq.effects[0][1])
+        
         if len(seq.effects) > 0:
             for i in seq.effects[1:]:
                 al.append(al[-1]+i[1])
+        
+            al2 = 0
+            al2n = seq.effects[0][1]
+            for i, v in enumerate(seq.effects):
+                if hasattr(seq.effects[i][0], "fired"):
+                    #renderElog("al2 check", seq.timer, type(seq.effects[i][0]).__name__, al2, seq.effects[i][0].fired)
+                    if seq.timer >= al2 and seq.timer < al2n:
+                        seq.effects[i][0].fired = True
+                al2 += v[1]
+                if len(seq.effects) > (i+1):
+                    al2n += seq.effects[i+1][1]
+                else:
+                    al2n += 999
         
         if seq.timer >= seq.total and seq.repeat:
             seq.timer = 0
@@ -587,10 +601,23 @@ else:
             ea += 1
             if seq.timer < al[i]:
                 break
-        if len(seq.activeeffects) < ea:
-            seq.activeeffects.append(seq.effects[ea-1][0])
+        # if len(seq.activeeffects) < ea:
+        #     effects_required = ea+0
+        #     adding = effects_required-len(seq.activeeffects)
+        #     renderElog("need to add", adding, "effects")
+        #     for i in range(adding):
+        #         seq.activeeffects.append(seq.effects[len(seq.activeeffects)+i][0])
+        
+        if ea == len(seq.effects):
+            seq.activeeffects = [a[0] for a in seq.effects]
+        else:
+            seq.activeeffects = [a[0] for a in seq.effects[:ea]]
+        
         for i in range(ea-1):
             seq.activeeffects[i].frozen = True
+        for i in range(len(seq.activeeffects)):
+            if hasattr(seq.effects[i], "fired"):
+                seq.activeeffects[i].fired = seq.effects[i].fired
         if seq.timer >= seq.total:
             if not seq.repeat:
                 for ef in seq.effects:
@@ -644,13 +671,13 @@ else:
                 #yyw -= (effect.y)/480*(yyy*2)
                 #qx = effect.x
                 #qy = effect.y
-                #if not quad.seq_start_after:
-                if setposition_absolute:
-                    qx = effect.x
-                    qy = effect.y
-                else:
-                    qx += effect.x
-                    qy += effect.y
+                if effect.fired:
+                    if setposition_absolute:
+                        qx = effect.x
+                        qy = effect.y
+                    else:
+                        qx += effect.x
+                        qy += effect.y
             elif type(effect) == SetSize:
                 quad._size = (effect.w, effect.h)
             elif type(effect) == SetText:
@@ -936,13 +963,13 @@ else:
                     # yyw -= (effect.y)/480*(yyy*2)
                     #qx = effect.x
                     #qy = effect.y
-                    #if not quad.seq_start_after:
-                    if setposition_absolute:
-                        qx = effect.x
-                        qy = effect.y
-                    else:
-                        qx += effect.x
-                        qy += effect.y
+                    if effect.fired:
+                        if setposition_absolute:
+                            qx = effect.x
+                            qy = effect.y
+                        else:
+                            qx += effect.x
+                            qy += effect.y
             elif type(effect) == SetSize:
                 if not se:
                     quad._size = (effect.w, effect.h)
@@ -1039,12 +1066,14 @@ else:
             rl.draw_model_ex(plane, rl.Vector3(-xxw, -yyw, -zzz), rl.Vector3(0, 0, 0), 0, rl.Vector3(1, 1, 1), col)
 
     class DummyQuad():
-        def __init__(self, x, y, w, h, effects=[], visible=True):
+        def __init__(self, x, y, w, h, effects=[], visible=True, seq_start_after=False, added=False):
             self._position = (x, y)
             self._size = (w, h)
             self.effects = effects
             self._color = (1, 1, 1, 1)
             self.visible = visible
+            self.seq_start_after = seq_start_after
+            self.added = added
         def size(self):
             return self._size
         def position(self):
@@ -1312,6 +1341,18 @@ else:
         return page
 
     ft = 0
+    def print_effects(eflist):
+        for effect in eflist:
+            if type(effect) == EffectSequencer:
+                renderElog("ES EFFECTS")
+                print_effects(effect.effects)
+                renderElog("ACTIVE")
+                print_effects(effect.activeeffects)
+                renderElog("END ES")
+            elif type(effect) is tuple:
+                renderElog(effect[0], effect[1])
+            else:
+                renderElog(type(effect).__name__)
     def draw_item(item, extra={"tex": None, "cam": None, "off": (0, 0), "lloop": 0}):
         global mode_3d_tracker
         global once
@@ -1446,7 +1487,7 @@ else:
             else:
                 draw_quad(item, item.cachedtex, off=extra["off"], premult=True)
                 if DEBUG:
-                    draw_quad(DummyQuad(item._position[0], item._position[1]-2, item._size[0], 2, []), red, off=extra["off"], premult=True)
+                    draw_quad(DummyQuad(item._position[0], item._position[1]-2, item._size[0], 2, [], added=item.added), red, off=extra["off"], premult=True)
             #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
             rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
         elif isinstance(item, Clock):
@@ -1564,7 +1605,7 @@ else:
                 #     draw_quad(DummyQuad(xxr, yyr, 720, 480, effects=item.effects), item.ftex.texture, se=True)
                 # el
                 #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
-                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects, visible=item.visible), item.ftex.texture, se=True, premult=True)
+                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects, visible=item.visible, added=item.added), item.ftex.texture, se=True, premult=True)
                 rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
             else:
                 #rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA_PREMULTIPLY)
@@ -1575,7 +1616,7 @@ else:
                 rl.rl_disable_depth_test()
                 rl.rl_disable_depth_mask()
                 drawlevel += 1
-                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects, visible=item.visible), item.ftex.texture, se=True, premult=True)
+                draw_quad(DummyQuad(0, 0, 720, 480, effects=item.effects, visible=item.visible, added=item.added), item.ftex.texture, se=True, premult=True)
                 drawlevel -= 1
                 rl.end_mode_3d()
                 mode_3d_tracker -= 1
@@ -1583,9 +1624,8 @@ else:
             if DEBUG:
                 rl.draw_rectangle_lines(0, 0, 720, 480, rl.BLUE)
             if item.debug or (DEBUG and type(item) is RichText):
-                tex = rl.load_image_from_texture(item.ftex.texture)
-                rl.export_image(tex, f"image{ft}.png")
-                ft += 1
+                renderElog("crdebug", xx2p, yy2p, setposition_absolute, item.added)
+                print_effects(item.effects)
         elif isinstance(item, Image):
             if type(item) is not CompositedImage:
                 if not item.texture:
