@@ -67,6 +67,8 @@ class Page(ObjectWrapper):
 
     def addItem(self, item):
         item.added = True
+        if type(item) is EffectSequencer:
+            item.timer = (not getattr(item.target, "added", True))-1
         if isinstance(item, PageCommand):
             frame = item.activeFrame()
             if frame == 0:
@@ -1331,6 +1333,8 @@ class EffectSequencer(Renderable):
         self.repeat = repeat
         self.loopLimit = loopLimit
         self.skipped = 0
+        
+        self.target = target
         
         target.addEffectSequencer(self, repeat, loopLimit)
         return
