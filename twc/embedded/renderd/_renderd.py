@@ -20,13 +20,16 @@ def createImage(self, name, evict=0, x1=0, y1=0, x2=1, y2=1):
     pname = parsePath(name)
     possible = glob.glob(pname+".*")
     print(possible)
-    if len(possible) > 0:
-        name = possible[0]
+    if os.path.exists(ogname):
+        name = ogname
     else:
-        name = nethandler.requestNetAsset(name, "gfx")
-    if not name:
-        print(f"No suitable image found for {ogname}!")
-        exit(1)
+        if len(possible) > 0:
+            name = possible[0]
+        else:
+            name = nethandler.requestNetAsset(name, "gfx")
+        if not name:
+            print(f"No suitable image found for {ogname}!")
+            exit(1)
     
     yy1 = 1-y2
     yy2 = 1-y1

@@ -701,8 +701,8 @@ else:
         loopover(effects)
         # xxw = (-qx-quad._size[0]/2)/720*(xxx*2)
         # yyw = (-qy-quad._size[1]/2)/480*(yyy*2)
-        xxw = -qx/720*(xxx*2)
-        yyw = -qy/480*(yyy*2)
+        xxw = -round(qx)/720*(xxx*2)
+        yyw = -round(qy)/480*(yyy*2)
         mat = rl.matrix_multiply(mat, rl.matrix_translate(-xxx, -yyy, 0))
         if drawlevel == 0:
             xxw -= ((activedrawlayer[6]+activedrawlayer[12])/720*(xxx*2))*activedrawlayer[10]
@@ -714,7 +714,7 @@ else:
         # else:
         #     xxw = (-qx-quad._size[0]/2)/720*(xxx*2)
         #     yyw = (-qy-quad._size[1]/2)/480*(yyy*2)
-        return xxw, yyw, mat, fader, qx, qy
+        return xxw, yyw, mat, fader, round(qx), round(qy)
 
     ps = """
     #version 330
@@ -871,7 +871,7 @@ else:
             qqy -= quad.s.count("\n")*quad.fnt.reallineheight
             if quad.fnt.shadow:
                 #qqx -= quad.fnt.sx
-                qqy -= abs(quad.fnt.sy)+1
+                qqy -= abs(quad.fnt.sy)+2
         x_offset = 0
         if isinstance(quad, Clock):
             if quad.justification == Clock.CENTER:
@@ -1623,6 +1623,7 @@ else:
                 rl.rl_set_blend_mode(rl.BlendMode.BLEND_ALPHA)
             if DEBUG:
                 rl.draw_rectangle_lines(0, 0, 720, 480, rl.BLUE)
+                rl.draw_rectangle(0, 470, 10, 10, rl.RED)
             if item.debug or (DEBUG and type(item) is RichText):
                 renderElog("crdebug", xx2p, yy2p, setposition_absolute, item.added)
                 print_effects(item.effects)

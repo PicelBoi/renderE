@@ -587,16 +587,19 @@ class Text(GraphicRenderable):
         self.cimg = None
         self.debug = debug
     
+    def correct_aspect(self, surf):
+        return rg.pg.transform.smoothscale_by(surf, (1, 0.93))
+    
     def create_cimg(self):
         if self.fnt.shadow:
-            newsurf = rg.pg.Surface((self._textsize[0]+abs(self.fnt.sx*2), self._textsize[1]+abs(self.fnt.sy*2)), rg.pg.SRCALPHA)
+            newsurf = rg.pg.Surface((self._textsize[0]+self.fnt.sx, self._textsize[1]+self.fnt.sy), rg.pg.SRCALPHA)
             newsurf.fill((0, 0, 0, 0))
-            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self.fnt.scol]), (self.fnt.sx, self.fnt.sy))
-            newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
-        else:
+            newsurf.blit(self.correct_aspect(self.fnt.font.render(self.s, True, [c*255 for c in self.fnt.scol])), (self.fnt.sx, self.fnt.sy))
+            newsurf.blit(self.correct_aspect(self.fnt.font.render(self.s, True, [c*255 for c in self._color])), (0, 0))
+        else: 
             newsurf = rg.pg.Surface(self._textsize, rg.pg.SRCALPHA)
             newsurf.blit(self.fnt.font.render(self.s, True, [c*255 for c in self._color]), (0, 0))
-        newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.93))
+            newsurf = rg.pg.transform.smoothscale_by(newsurf, (1, 0.93))
         buf = BytesIO()
         rg.pg.image.save(newsurf, buf, ".bmp")
         self.cimg = rg.rl.load_image_from_memory(".bmp", buf.getvalue(), len(buf.getvalue()))
