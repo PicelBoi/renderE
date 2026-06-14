@@ -101,6 +101,18 @@ def newexists(path):
     else:
         return True
 
+def newisfile(path):
+    if path.startswith("/twc/data/map.cuts"):
+        return os.path.isfile(path.replace("/twc/data/map.cuts", rg.newjoin(os.environ["TWCPERSDIR"], "data", "map.cuts")))
+    if not os.path.exists(path):
+        newpath = nethandler.requestNetAssetExt(path)
+        return os.path.isfile(newpath)
+    else:
+        return os.path.isfile(path)
+
+def newstrftime(format, struc_time):
+    return time.strftime(format.replace("%l", str(int(time.strftime("%I", struc_time))).rjust(2)), struc_time)
+
 rg.newaccess = newaccess
 rg.newstat = newstat
 rg.newexists = newexists
@@ -114,9 +126,9 @@ def runrs(filename):
     global iid
     crs = loadtools.compilers(filename)
     print(type(crs))
-    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "newjoin": rg.newjoin, "range": newrange, "map": revmap}
+    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "newjoin": rg.newjoin, "range": newrange, "map": revmap, "newisfile": newisfile, "newstrftime": newstrftime}
     try:
-        exec(crs.replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), ns, ns)
+        exec(crs.replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin").replace("os.path.isfile", "newisfile").replace("time.strftime", "newstrftime"), ns, ns)
     except Exception as e:
         tb.print_exc()
         with open(f"rscrash{iid}.txt", "w") as f:
@@ -128,9 +140,9 @@ def runrsc(filename):
     dat = "global layerProps\n"
     with open(os.path.normpath(filename), "r") as f:
         dat += f.read()
-    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "reduce": reduce, "newjoin": rg.newjoin, "time": time}
+    ns = {"apply": apply, "newaccess": newaccess, "newexists": newexists, "newstat": newstat, "reduce": reduce, "newjoin": rg.newjoin, "time": time, "newisfile": newisfile, "newstrftime": newstrftime}
     ns.update()
-    fixed = unprint(dat).replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin")
+    fixed = unprint(dat).replace("os.stat", "newstat").replace("os.access", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin".replace("os.path.isfile", "newisfile").replace("time.strftime", "newstrftime"))
     
     try:
         exec(compile(fixed, filename, "exec"), ns, ns)
