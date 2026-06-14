@@ -117,6 +117,8 @@ rg.newaccess = newaccess
 rg.newstat = newstat
 rg.newexists = newexists
 
+builtins.__dict__["newstrftime"] = newstrftime
+
 iid = 0
 
 def revmap(*args):

@@ -5,6 +5,7 @@
 # Compiled at: 2007-01-12 11:17:30
 import os.path, rsfix
 import nethandler
+import patches
 
 _includePath = ['.']
 
@@ -17,6 +18,7 @@ import rendereglobals as rg
 newstat = rg.newstat
 newaccess = rg.newaccess
 from functools import reduce
+
 def evalPage(page, namespace={}, includePath=None):
     """Parses text looking for tags in the spirit of ASP tags and evaluates
     them.  The contexts of the tags are passed to the Python interpreter.
@@ -37,6 +39,7 @@ def evalPage(page, namespace={}, includePath=None):
     page = page.replace("os.newaccess", "newaccess")
     page = page.replace("os.path.exists", "newexists")
     page = page.replace("os.path.join", "newjoin")
+    page = page.replace("time.strftime", "newstrftime")
     if includePath == None:
         includePath = _includePath
     p1 = page.find('<%')
@@ -74,6 +77,13 @@ def evalPage(page, namespace={}, includePath=None):
                 if os.path.exists(temp):
                     fname = temp
                     break
+            if not fname:
+                if os.path.exists(val):
+                    fname = val
+            if not fname:
+                vr = val.replace(os.environ["TWCPERSDIR"]+"/products", "net/twc/products", 1)
+                if os.path.exists(vr):
+                    fname = vr
             if not fname:
                 for path in includePath:
                     temp = '%s/%s' % (path, val)
@@ -117,8 +127,12 @@ def evalPage(page, namespace={}, includePath=None):
     elif cmd == '!':
         #print(sub2[:100])
         try:
-            exec(rsfix.fix_if(sub2).replace("os.stat", "newstat").replace("os.newaccess", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin"), namespace)
+            fixed = rsfix.fix_if(sub2).replace("os.stat", "newstat").replace("os.newaccess", "newaccess").replace("os.path.exists", "newexists").replace("os.path.join", "newjoin")
+            fc = compile(fixed, "<string>", "exec")
+            exec(fc, namespace)
         except Exception as e:
+            with open("explode.txt", "w") as f:
+                f.write(sub2)
             raise e
         return sub1 + evalPage(sub3, namespace, includePath)
     elif cmd == '=':
