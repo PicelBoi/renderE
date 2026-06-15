@@ -96,7 +96,7 @@ if not wxs:
     coopid = list(coopid)
     afcoop = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
     #print("headline county", headlinecounty)
-    headlinecounty = "PAC009"
+    #headlinecounty = "PAC009"
 else:
     hourlycoop = coopid
 
@@ -309,7 +309,7 @@ if not doonly or only == "fcst":
                 
                 y,m,d,H,M,S,wday,jday,dst = time.localtime(forecast["fcst_valid"])
                 print(time.localtime(forecast["fcst_valid"]))
-                ktime = time.mktime((y,m,d-1,0,0,0,wday,jday,-1))
+                ktime = time.mktime((y,m,d,0,0,0,wday,jday,-1))
                 
                 data = twccommon.Data()
                 if "day" in forecast:
