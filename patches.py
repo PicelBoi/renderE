@@ -110,7 +110,9 @@ def newisfile(path):
     else:
         return os.path.isfile(path)
 
-def newstrftime(format, struc_time):
+def newstrftime(format, struc_time=None):
+    if not struc_time:
+        struc_time = time.localtime(time.time())
     return time.strftime(format.replace("%l", str(int(time.strftime("%I", struc_time))).rjust(2)), struc_time)
 
 rg.newaccess = newaccess
