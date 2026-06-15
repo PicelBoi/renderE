@@ -95,8 +95,8 @@ if not wxs:
 
     coopid = list(coopid)
     afcoop = list(set([sevendaycoop] + [primarycoop] + getawaycoop + metrofcstcoop + regfcstcoop))
-
-    print("Headline county ", headlinecounty)
+    #print("headline county", headlinecounty)
+    headlinecounty = "PAC009"
 else:
     hourlycoop = coopid
 
@@ -145,7 +145,7 @@ if (not doonly or only == "sensor") and not nosensor:
         data.visibility = visround(dat["current"]["conditions"]["visibility"])
         data.windDirection = windmap[dat["current"]["conditions"]["windCardinal"]]
         data.windSpeed = dat["current"]["conditions"]["windSpeed"]
-        data.gusts = dat["current"]["conditions"]["windGusts"]
+        data.gusts = dat["current"]["conditions"]["windGusts"] or 0
         data.heatIndex = dat["current"]["conditions"]["heatIndex"]
         data.windChill = dat["current"]["conditions"]["windChill"]
         data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
@@ -174,7 +174,7 @@ if not doonly or only == "obs":
             data.visibility = visround(dat["current"]["conditions"]["visibility"])
             data.windDirection = windmap[dat["current"]["conditions"]["windCardinal"]]
             data.windSpeed = dat["current"]["conditions"]["windSpeed"]
-            data.gusts = dat["current"]["conditions"]["windGusts"]
+            data.gusts = dat["current"]["conditions"]["windGusts"] or 0
             data.heatIndex = dat["current"]["conditions"]["heatIndex"]
             data.windChill = dat["current"]["conditions"]["windChill"]
             data.feelsLikeIndex = dat["current"]["conditions"]["feelsLike"]
@@ -301,44 +301,39 @@ if not doonly or only == "fcst":
         try:
             print(f"starting forecast data for {ci}!")
             print(cidmap[ci])
-            dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[ci])}&extendeddays=10").json()
-            try:
-                golfdat = r.get(f"https://api.weather.com/v2/indices/golf/daypart/15day?geocode={','.join(cidmap[ci])}&language=en-US&format=json&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["golfIndex12hour"]
-            except:
-                golfdat = None
+            #dat = r.get(f"https://wx.lewolfyt.cc?geo={','.join(cidmap[ci])}&extendeddays=10").json()
+            forecasts = r.get(f"https://api.weather.com/v1/geocode/{'/'.join(cidmap[ci])}/forecast/daily/10day.json?language=en-US&units=e&apiKey=e1f10a1e78da46f5b10a1e78da96f525").json()["forecasts"]
             
             for i in range(9):
-                j = i + (dat["extended"]["daily"][0]["partiallyObserved"])
-                jj = (i*2+1) if dat["extended"]["daily"][0]["partiallyObserved"] else (i*2)
-                dailydat = dat["extended"]["daily"][j]
-                daypartdat = dat["extended"]["daypart"][jj]
-                daypartdat2 = dat["extended"]["daypart"][jj+1]
+                forecast = forecasts[i]
                 
-                y,m,d,H,M,S,wday,jday,dst = time.localtime(dailydat["valid"])
-                ktime = time.mktime((y,m,d,0,0,0,wday,jday,-1))
+                y,m,d,H,M,S,wday,jday,dst = time.localtime(forecast["fcst_valid"])
+                print(time.localtime(forecast["fcst_valid"]))
+                ktime = time.mktime((y,m,d-1,0,0,0,wday,jday,-1))
                 
                 data = twccommon.Data()
-                data.daySkyCondition = daypartdat["narrationCode"]
-                data.skyCondition = daypartdat["narrationCode"]
-                data.eveningSkyCondition = daypartdat2["narrationCode"]
-                data.highTemp = dailydat["calendarTempMax"]
-                data.lowTemp = dailydat["calendarTempMin"]
-                data.dayWindSpeed = daypartdat["windSpeed"]
-                data.dayWindDir = windmap[daypartdat["windCardinal"]]
-                data.dayChanceOfPrecip = 0 #figure this out later
-                if golfdat:
-                    matched = False
-                    matchidx = 0
-                    for i, val in enumerate(golfdat["fcstValid"]):
-                        if val == dailydat["valid"]:
-                            matched = True
-                            matchidx = int(i)
-                    if not matched:
-                        print(f"no golf data match for location {ci}")
+                if "day" in forecast:
+                    data.daySkyCondition = forecast["day"]["icon_extd"]
+                    data.dayChanceOfPrecip = forecast["day"]["pop"]
+                    data.dayPrecipType = forecast["day"]["precip_type"]
+                    data.daySnowAccum = forecast["day"]["snow_qpf"] or None
+                    data.dayWindSpeed = forecast["day"]["wspd"]
+                    data.dayWindDir = windmap[forecast["day"]["wdir_cardinal"]]
+                    data.dayRelHumidity = forecast["day"]["rh"]
+                    data.highTemp = forecast["day"]["temp"]
+                    data.golfIndex = forecast["day"]["golf_index"]
                     
-                    data.golfIndex = golfdat["golfIndex"][matchidx]
-                #data.golfIndex = 3
-                #dailydat["expires"]
+                    data.skyCondition = forecast["day"]["icon_extd"]
+                
+                data.eveningSkyCondition = forecast["night"]["icon_extd"]
+                data.eveningChanceOfPrecip = forecast["night"]["pop"]
+                data.eveningPrecipType = forecast["night"]["precip_type"]
+                data.eveningSnowAccum = forecast["night"]["snow_qpf"] or None
+                data.eveningWindSpeed = forecast["night"]["wspd"]
+                data.eveningWindDir = windmap[forecast["night"]["wdir_cardinal"]]
+                data.eveningRelHumidity = forecast["night"]["rh"]
+                data.lowTemp = forecast["night"]["temp"]
+                
                 dsm.rset(f"dailyFcst.{ci}.{int(ktime)}", data, expiretime)
         except:
             print(traceback.print_exc())
@@ -800,6 +795,37 @@ if (not doonly or only == "traffic") and tomtom_key and not wxs and not notraffi
             finalincidents += 1
         dsm.rset(f"incidents.{metroid}", twccommon.Data(count=finalincidents, rev=0), expiretime)
 
+if (not doonly or only == "headlines") and not (nb or wxs):
+    def getheadlines():
+        try:
+            print("getting headlines for", headlinecounty)
+            alerts = r.get(f"https://api.weather.gov/alerts/active?zone={headlinecounty}").json()
+            hexpiretime = 1
+            zoneprops = {}
+            headlines = []
+            vocal = []
+            for f in alerts["features"]:
+                try:
+                    props = f["properties"]
+                    headline = props["headline"]
+                    hexpiretime = max(int(datetime.fromisoformat(props["expires"]).timestamp()), hexpiretime)
+                    
+                    if props["event"] not in codes:
+                        print("event", props["event"], "not in codes")
+                        continue
+                    
+                    headlines.append(headline)
+                    vocalcode = (codes[props["event"]], "I", "")
+                    vocal.append(vocalcode)
+                    print(f"added headline {headline} {vocal}")
+                except:
+                    traceback.print_exc()
+                    print("anywho,")
+            print("expires", hexpiretime)
+            dsm.rset(f"hdln.PAZ021", twccommon.Data(headlines=headlines, vocal=vocal), hexpiretime)
+        except:
+            print("headline failure!")
+
 def encode():
     global times
     threads = []
@@ -877,6 +903,9 @@ def encode():
     if (not doonly or only == "traffic") and tomtom_key and not wxs and not notraffic:
         threads.append(th.Thread(target=gettraffic))
     
+    #if (not doonly or only == "headlines") and only != "clearbulletin" and not (nb or wxs):
+    #    threads.append(th.Thread(target=getheadlines))
+    
     if calm:
         for t in threads:
             t.start()
@@ -908,27 +937,3 @@ else:
     encode()
 
 exit()
-print("starting nws headlines")
-
-try:
-    alerts = r.get(f"https://api.weather.gov/alerts/active?zone=MTC015").json()
-    hexpiretime = 1
-    zoneprops = {}
-    headlines = []
-    vocal = []
-    for f in alerts["features"]:
-        try:
-            props = f["properties"]
-            headline = props["headline"]
-            hexpiretime = max(int(datetime.fromisoformat(props["expires"]).timestamp()), hexpiretime)
-            headlines.append(headline)
-            vocalcode = codes[props["eventCode"]["SAME"][0]]
-            vocal.append(vocalcode)
-            print(f"added headline {headline} {vocal}")
-        except:
-            traceback.print_exc()
-            print("anywho,")
-    print("expires", hexpiretime)
-    dsm.rset(f"hdln.{headlinecounty}", twccommon.Data(headlines=headlines, vocal=vocal), hexpiretime)
-except:
-    print("headline failure!")
