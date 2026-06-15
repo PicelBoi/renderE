@@ -7,6 +7,8 @@ import sys
 import json
 import subprocess as sp
 
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 root = tk.Tk()
 root.withdraw()
 root.configure(takefocus=False)
