@@ -420,8 +420,9 @@ def download_essential_data():
             out_dir = os.path.dirname(out_name)
             os.makedirs(out_dir, exist_ok=True)
             data = r.get(os.path.join(url_base, file)).content
-            with open(out_name, "wb") as f:
-                f.write(data)
+            if data:
+                with open(out_name, "wb") as f:
+                    f.write(data)
         except Exception as e:
             print(f"Error downloading {file}: {e}")
 
