@@ -391,6 +391,40 @@ def load_crawls(reload=False):
 def reload_crawls():
     load_crawls(True)
 
+def check_essential_data():
+    with open(os.path.join(mypath, "servers.json"), "r") as f:
+        data = json.load(f)
+    efurl = os.path.join(data[1], "essentialFiles.txt")
+    page_vars["hasEF"] = efurl if r.head(efurl).ok else False
+    if bool(page_vars["hasEF"]):
+        pagemap["dessential_confirm"] = {
+            "type": "textpage",
+            "title": "Download Essential Data",
+            "desc": f"Would you like to download essential data for {data[0]}? This may fix bugs, but it may overwrite modifications you have made!",
+            "options": [
+                "Yes",
+                "No"
+            ],
+            "actions": [
+                {"type": "page", "destination": "dessential"},
+                {"type": "page", "destination": "main"}
+            ]
+        }
+
+def download_essential_data():
+    efurl = page_vars["hasEF"]
+    url_base = os.path.dirname(efurl)
+    for file in r.get(efurl).text.strip().split("\n"):
+        try:
+            out_name = os.path.join(mypath, "net", file)
+            out_dir = os.path.dirname(out_name)
+            os.makedirs(out_dir, exist_ok=True)
+            data = r.get(os.path.join(url_base, file)).content
+            with open(out_name, "wb") as f:
+                f.write(data)
+        except Exception as e:
+            print(f"Error downloading {file}: {e}")
+
 pagemap = {
     "init": {
         "type": "autopage",
@@ -459,7 +493,7 @@ pagemap = {
     "setup3A_alt": {
         "type": "textpage",
         "title": "Datastore Setup",
-        "desc": "Choose which initial i1 datastore to use. Please note that Perris is the only full package currently supported by RenderE, so other datastores may cause issues!",
+        "desc": "Choose which initial i1 datastore to use. Perris support is currently the best! Weatherscan requires additional outside setup, along with Flat Rock.",
         "options": [
             "Perris",
             "Flat Rock",
@@ -557,15 +591,17 @@ pagemap = {
     "setup4": {
         "type": "textpage",
         "title": "Configuration Setup",
-        "desc": "In this section of setup, you can determine the location configuration. Would you like to browse our configuration repository, or load a configuration from a file?",
+        "desc": "Here, you can determine the location of your i1. Would you like to browse our configuration repository, or load a configuration from a file?\nIf you skip this step, you can come back to it in the main menu.",
         "options": [
             "Browse Repository",
             "Load from file",
+            "Skip",
             "Quit"
         ],
         "actions": [
             {"type": "page", "destination": "setup4Aload"},
             {"type": "page", "destination": "setup4Bwarn"},
+            {"type": "page", "destination": "setup4skip"},
             {"type": "quit"}
         ]
     },
@@ -670,6 +706,19 @@ pagemap = {
             {"type": "quit"}
         ]
     },
+    "setup4skip": {
+        "type": "textpage",
+        "title": "Configuration Setup",
+        "desc": "Initial setup has been completed! You can now use the other included setup tools.",
+        "options": [
+            "Main menu",
+            "Quit"
+        ],
+        "actions": [
+            {"type": "multi", "actions": [{"type": "var", "key": "alreadysetup", "val": True}, {"type": "page", "destination": "main"}]},
+            {"type": "quit"}
+        ]
+    },
     "setup4S_alt": {
         "type": "textpage",
         "title": "Configuration Setup",
@@ -689,6 +738,7 @@ pagemap = {
             "Reset Datastore",
             "Load Configuration",
             "Change data server",
+            "Download Essential Data",
             "RCMT",
             #"Playlist editor",
             "Clear temporary files",
@@ -698,10 +748,40 @@ pagemap = {
             {"type": "page", "destination": "setup2_alt"},
             {"type": "page", "destination": "setup4_alt"},
             {"type": "page", "destination": "dataservers"},
+            {"type": "page", "destination": "checkessential"},
             {"type": "page", "destination": "rcmt"},
             #{"type": "page", "destination": "pedit_load"},
             {"type": "page", "destination": "cleartemp"},
             {"type": "quit"}
+        ]
+    },
+    "checkessential": {
+        "type": "autopage",
+        "title": "Download Essential Data",
+        "desc": "Loading...",
+        "actions": [
+            {"type": "func", "func": check_essential_data},
+            {"type": "cond", "key": "hasEF", "true": {"type": "page", "destination": "dessential_confirm"}, "false": {"type": "page", "destination": "noessential"}}
+        ]
+    },
+    "noessential": {
+        "type": "textpage",
+        "title": "Download Essential Data",
+        "desc": "There is no essential data defined for the current data server.",
+        "options": [
+            "Back"
+        ],
+        "actions": [
+            {"type": "page", "destination": "main"},
+        ]
+    },
+    "dessential": {
+        "type": "autopage",
+        "title": "Download Essential Data",
+        "desc": "Downloading files...",
+        "actions": [
+            {"type": "func", "func": download_essential_data},
+            {"type": "page", "destination": "main"}
         ]
     },
     "rcmt": {
