@@ -306,7 +306,7 @@ if not doonly or only == "fcst":
             
             for i in range(9):
                 forecast = forecasts[i]
-                if i > 9:
+                if i > 0:
                     forecast_next = forecasts[i-1]
                 else:
                     forecast_next = None
