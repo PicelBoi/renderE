@@ -306,7 +306,10 @@ if not doonly or only == "fcst":
             
             for i in range(9):
                 forecast = forecasts[i]
-                forecast_next = forecasts[i+1]
+                if i > 9:
+                    forecast_next = forecasts[i-1]
+                else:
+                    forecast_next = None
                 
                 y,m,d,H,M,S,wday,jday,dst = time.localtime(forecast["fcst_valid"])
                 print(time.localtime(forecast["fcst_valid"]))
@@ -326,14 +329,15 @@ if not doonly or only == "fcst":
                     
                     data.skyCondition = forecast["day"]["icon_extd"]
                 
-                data.eveningSkyCondition = forecast_next["night"]["icon_extd"]
-                data.eveningChanceOfPrecip = forecast_next["night"]["pop"]
-                data.eveningPrecipType = forecast_next["night"]["precip_type"]
-                data.eveningSnowAccum = forecast_next["night"]["snow_qpf"] or None
-                data.eveningWindSpeed = forecast_next["night"]["wspd"]
-                data.eveningWindDir = windmap[forecast_next["night"]["wdir_cardinal"]]
-                data.eveningRelHumidity = forecast_next["night"]["rh"]
-                data.lowTemp = forecast_next["night"]["temp"]
+                if forecast_next:
+                    data.eveningSkyCondition = forecast_next["night"]["icon_extd"]
+                    data.eveningChanceOfPrecip = forecast_next["night"]["pop"]
+                    data.eveningPrecipType = forecast_next["night"]["precip_type"]
+                    data.eveningSnowAccum = forecast_next["night"]["snow_qpf"] or None
+                    data.eveningWindSpeed = forecast_next["night"]["wspd"]
+                    data.eveningWindDir = windmap[forecast_next["night"]["wdir_cardinal"]]
+                    data.eveningRelHumidity = forecast_next["night"]["rh"]
+                    data.lowTemp = forecast_next["night"]["temp"]
                 
                 dsm.rset(f"dailyFcst.{ci}.{int(ktime)}", data, expiretime)
         except:
